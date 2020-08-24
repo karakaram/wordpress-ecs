@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   web:
-    build: ./nginx
+    image: wordpress-ecs_web:fba5753
+    build:
+      context: ./nginx
     depends_on:
       - app
     ports:
@@ -11,7 +13,9 @@ services:
       - ./wordpress:/var/www/html
 
   app:
-    build: php-fpm
+    image: wordpress-ecs_app:fba5753
+    build:
+      context: ./php-fpm
     depends_on:
       - db
     environment:
