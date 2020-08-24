@@ -4,9 +4,9 @@ task_definition:
   task_execution_role: ecsTaskExecutionRole
   services:
     web:
-      mem_reservation: 256m
+      mem_limit: 192m
     app:
-      mem_reservation: 768m
+      mem_limit: 704m
   efs_volumes:
     - name: my-efs-volume
       filesystem_id: fs-8a4f75ab
