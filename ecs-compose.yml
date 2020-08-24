@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+  web:
+    image: 274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wordpress-ecs_web
+    links:
+      - app
+    ports:
+      - "0:80"
+    volumes:
+      - my-efs-volume:/var/www/html
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: wp-ecs-logs
+        awslogs-region: ap-northeast-1
+        awslogs-stream-prefix: web
+
+  app:
+    image: 274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wordpress-ecs_app
+    volumes:
+      - my-efs-volume:/var/www/html
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: wp-ecs-logs
+        awslogs-region: ap-northeast-1
+        awslogs-stream-prefix: app
+
+volumes:
+  my-efs-volume:

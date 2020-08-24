@@ -35,3 +35,23 @@ docker-compose up -d
 Configure Wordpress
 
 http://localhost:8080
+
+## Setting up WordPress in ECS EC2 mode
+
+```
+ecs-cli configure --cluster wp-ec2 --default-launch-type EC2 --config-name wp-ec2 --region ap-northeast-1
+ecs-cli configure profile --profile-name training --access-key $AWS_ACCESS_KEY_ID --secret-key $AWS_SECRET_ACCESS_KEY
+ecs-cli up --instance-role my-ec2-role-for-ecs --keypair my-key --size 1 --security-group sg-04d366d09698b0636,sg-02dca44b8bd6f0e88 --subnets subnet-02bc52743e4cd6571,subnet-0f1ab6ad48c03cf1a --vpc vpc-030cb9b38bbf5d7ba --instance-type t3.micro --tags Name=wp-ecs --cluster wp-ec2
+ecs-cli scale --capability-iam --size 0 --cluster wp-ec2
+ecs-cli scale --capability-iam --size 1 --cluster wp-ec2
+ecs-cli down --cluster wp-ec2
+ecs-cli push wordpress-ecs_web:latest
+ecs-cli push wordpress-ecs_app:latest
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 create
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 service up
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 service stop
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 service down
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 service up --vpc vpc-030cb9b38bbf5d7ba --target-group-arn arn:aws:elasticloadbalancing:ap-northeast-1:274682760725:targetgroup/wp-ecs-ec2/e60e39ae9a63e604 --container-name web --container-port 80
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --cluster-config wp-ec2 service scale 0
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --cluster-config wp-ec2 service scale 1
+```
