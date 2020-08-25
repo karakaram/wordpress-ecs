@@ -13,7 +13,7 @@ services:
       - ./wordpress:/var/www/html
 
   app:
-    image: wordpress-ecs_app:fba5753
+    image: wordpress-ecs_app:920ccba
     build:
       context: ./php-fpm
     depends_on:

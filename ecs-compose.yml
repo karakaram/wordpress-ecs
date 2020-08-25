@@ -17,7 +17,7 @@ services:
         awslogs-stream-prefix: web
 
   app:
-    image: 274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wordpress-ecs_app:fba5753
+    image: 274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wordpress-ecs_app:920ccba
     volumes:
       - my-efs-volume:/var/www/html
     logging:

@@ -46,7 +46,7 @@ ecs-cli scale --capability-iam --size 0 --cluster wp-ec2
 ecs-cli scale --capability-iam --size 1 --cluster wp-ec2
 ecs-cli down --cluster wp-ec2
 ecs-cli push wordpress-ecs_web:fba5753
-ecs-cli push wordpress-ecs_app:fba5753
+ecs-cli push wordpress-ecs_app:920ccba
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 create
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 service up
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 service stop
