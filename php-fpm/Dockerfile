@@ -67,6 +67,7 @@ RUN { \
 RUN set -eux ; \
     addgroup -g 101 -S nginx; \
     adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx; \
+    apk add --no-cache su-exec; \
     cp /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini; \
     sed -i -r -e 's/^;?date.timezone =.*$/date.timezone = "UTC"/g' /usr/local/etc/php/php.ini; \
     sed -i -r -e 's/^;?expose_php =.*$/expose_php = Off/g' /usr/local/etc/php/php.ini; \
