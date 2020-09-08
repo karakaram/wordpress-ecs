@@ -1,0 +1,50 @@
+[
+  {
+    "ParameterKey": "ParentVPCStack",
+    "ParameterValue": "cashbook-vpc-3azs"
+  },
+  {
+    "ParameterKey": "ParentClientStack",
+    "ParameterValue": "my-client-sg"
+  },
+  {
+    "ParameterKey": "DBBackupRetentionPeriod",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "DBMasterUsername",
+    "ParameterValue": "/my/db/username"
+  },
+  {
+    "ParameterKey": "DBMasterUserPassword",
+    "ParameterValue": "/my/db/password"
+  },
+  {
+    "ParameterKey": "DBMultiAZ",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "DBAllocatedStorage",
+    "ParameterValue": "20"
+  },
+  {
+    "ParameterKey": "DBInstanceClass",
+    "ParameterValue": "db.t3.micro"
+  },
+  {
+    "ParameterKey": "DBBackupRetentionPeriod",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "PreferredBackupWindow",
+    "ParameterValue": "17:00-18:00"
+  },
+  {
+    "ParameterKey": "PreferredMaintenanceWindow",
+    "ParameterValue": "sat:18:00-sat:19:00"
+  },
+  {
+    "ParameterKey": "EngineVersion",
+    "ParameterValue": "8.0.21"
+  }
+]
