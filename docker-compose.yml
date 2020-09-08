@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   web:
-    image: wordpress-ecs_web:fba5753
+    image: wordpress-ecs_web:1.18.0
     build:
       context: ./nginx
     depends_on:
@@ -13,7 +13,7 @@ services:
       - ./wordpress:/var/www/html
 
   app:
-    image: wordpress-ecs_app:920ccba
+    image: wordpress-ecs_app:7.4.0
     build:
       context: ./php-fpm
     depends_on:

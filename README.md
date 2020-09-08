@@ -45,13 +45,17 @@ ecs-cli up --instance-role my-ec2-role-for-ecs --keypair my-key --size 1 --secur
 ecs-cli scale --capability-iam --size 0 --cluster wp-ec2
 ecs-cli scale --capability-iam --size 1 --cluster wp-ec2
 ecs-cli down --cluster wp-ec2
-ecs-cli push wordpress-ecs_web:fba5753
-ecs-cli push wordpress-ecs_app:920ccba
+ecs-cli push wordpress-ecs_web:1.18.0
+ecs-cli push wordpress-ecs_app:7.4.0
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 create
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 service up
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 service stop
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 service down
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml --cluster-config wp-ec2 service up --vpc vpc-030cb9b38bbf5d7ba --target-group-arn arn:aws:elasticloadbalancing:ap-northeast-1:274682760725:targetgroup/wp-ecs-ec2/e60e39ae9a63e604 --container-name web --container-port 80
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --cluster-config wp-ec2 service scale 0
-ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --cluster-config wp-ec2 service scale 1
+
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml create launch-type EC2
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml service --cluster wp-ecs-ec2-spot-ECSCluster-5iAeoHg7upMl down
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml service --cluster wp-ecs-ec2-spot-ECSCluster-5iAeoHg7upMl up --target-groups "targetGroupArn=arn:aws:elasticloadbalancing:ap-northeast-1:274682760725:targetgroup/wp-ec-ALBTa-FSSIMGZHVTNX/16243b19898250f9,containerName=web,containerPort=80"
+ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --cluster-config wp-ec2 service --cluster wp-ecs-ec2-spot-ECSCluster-5iAeoHg7upMl scale 1
 ```
