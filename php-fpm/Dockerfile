@@ -2,6 +2,12 @@ FROM php:7.4-fpm-alpine
 
 # persistent dependencies
 RUN apk add --no-cache \
+# in theory, docker-entrypoint.sh is POSIX-compliant, but priority is a working, consistent image
+		bash \
+# BusyBox sed is not sufficient for some of our sed expressions
+		sed \
+# Ghostscript is required for rendering PDF previews
+		ghostscript \
 # Alpine package for "imagemagick" contains ~120 .so files, see: https://github.com/docker-library/wordpress/pull/497
 		imagemagick
 

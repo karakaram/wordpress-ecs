@@ -73,7 +73,7 @@ ecs-cli up --instance-role my-ec2-role-for-ecs --keypair my-key --size 1 --secur
 ecs-cli down --cluster wp-ec2
 
 ecs-cli push wordpress-ecs_web:1.18.0
-ecs-cli push wordpress-ecs_app:7.4.0
+ecs-cli push wordpress-ecs_app:7.4.1
 
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml create launch-type EC2
 ecs-cli compose --file ecs-compose.yml --project-name wp-ec2 --ecs-params ecs-params.yml service --cluster wp-ecs-ec2-spot-ECSCluster-5iAeoHg7upMl up --target-groups "targetGroupArn=arn:aws:elasticloadbalancing:ap-northeast-1:274682760725:targetgroup/wp-ec-ALBTa-FSSIMGZHVTNX/16243b19898250f9,containerName=web,containerPort=80"
