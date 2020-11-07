@@ -1,0 +1,118 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Application Load Balancer'
+Parameters:
+  ParentVPCStack:
+    Description: 'Stack name of parent VPC stack based on vpc/vpc-*azs.yaml template.'
+    Type: String
+  ParentAlertStack:
+    Description: 'Optional but recommended stack name of parent alert stack based on operations/alert.yaml template.'
+    Type: String
+    Default: ''
+  ParentS3StackAccessLog:
+    Description: 'Optional stack name of parent s3 stack based on state/s3.yaml template (with Access set to ElbAccessLogWrite) to store access logs.'
+    Type: String
+    Default: ''
+  LoadBalancerScheme:
+    Description: 'Indicates whether the load balancer in front of the ECS cluster is internet-facing or internal.'
+    Type: String
+    Default: 'internet-facing'
+    AllowedValues:
+      - 'internet-facing'
+      - internal
+  LoadBalancerIdleTimeout:
+    Description: 'The idle timeout value, in seconds.'
+    Type: Number
+    Default: 60
+    MinValue: 1
+    MaxValue: 4000
+Conditions:
+  HasLoadBalancerSchemeInternal: !Equals [!Ref LoadBalancerScheme, 'internal']
+  HasAlertTopic: !Not [!Equals [!Ref ParentAlertStack, '']]
+  HasS3Bucket: !Not [!Equals [!Ref ParentS3StackAccessLog, '']]
+Resources:
+  ALBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'ecs-cluster-alb'
+      VpcId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-VPC'}
+  ALBSecurityGroupInHttpsWorld:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: '0.0.0.0/0'
+#  HTTPCodeELB5XXTooHighAlarm:
+#    Condition: HasAlertTopic
+#    Type: 'AWS::CloudWatch::Alarm'
+#    Properties:
+#      AlarmDescription: 'Application load balancer returns 5XX HTTP status codes'
+#      Namespace: 'AWS/ApplicationELB'
+#      MetricName: HTTPCode_ELB_5XX_Count
+#      Statistic: Sum
+#      Period: 60
+#      EvaluationPeriods: 1
+#      ComparisonOperator: GreaterThanThreshold
+#      Threshold: 0
+#      AlarmActions:
+#        - { 'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN' }
+#      Dimensions:
+#        - Name: LoadBalancer
+#          Value: !GetAtt 'LoadBalancer.LoadBalancerFullName'
+#      TreatMissingData: notBreaching
+  LoadBalancer: # not monitored, but DefaultTargetGroup is monitored!
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      IpAddressType: 'ipv4'
+      LoadBalancerAttributes:
+        - Key: 'idle_timeout.timeout_seconds'
+          Value: !Ref LoadBalancerIdleTimeout
+        - Key: 'routing.http2.enabled'
+          Value: 'true'
+        - Key: 'access_logs.s3.enabled'
+          Value: !If [HasS3Bucket, 'true', 'false']
+        - !If [HasS3Bucket, {Key: 'access_logs.s3.prefix', Value: !Ref 'AWS::StackName'}, !Ref 'AWS::NoValue']
+        - !If [HasS3Bucket, {Key: 'access_logs.s3.bucket', Value: {'Fn::ImportValue': !Sub '${ParentS3StackAccessLog}-BucketName'}}, !Ref 'AWS::NoValue']
+      Scheme: !Ref LoadBalancerScheme
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets: !If
+        - HasLoadBalancerSchemeInternal
+        - !Split [',', {'Fn::ImportValue': !Sub '${ParentVPCStack}-SubnetsPrivate'}]
+        - !Split [',', {'Fn::ImportValue': !Sub '${ParentVPCStack}-SubnetsPublic'}]
+Outputs:
+  TemplateVersion:
+    Description: 'Application Load Balancer template version.'
+    Value: '12.12.0'
+  LoadBalancerARN:
+    Description: 'Application Load Balancer ARN'
+    Value: !Ref LoadBalancer
+    Export:
+      Name: !Sub '${AWS::StackName}-LoadBalancerARN'
+  LoadBalancerFullName:
+    Description: 'ALB full name for services.'
+    Value: !GetAtt 'LoadBalancer.LoadBalancerFullName'
+    Export:
+      Name: !Sub '${AWS::StackName}-LoadBalancerFullName'
+  SecurityGroupID:
+    Description: 'SecurityGroupID for ApplicationLoadBalancer.'
+    Value: !GetAtt 'ALBSecurityGroup.GroupId'
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupID'
+  CanonicalHostedZoneID:
+    Description: 'The ID of the Amazon Route 53 hosted zone associated with the load balancer.'
+    Value: !GetAtt LoadBalancer.CanonicalHostedZoneID
+    Export:
+      Name: !Sub '${AWS::StackName}-CanonicalHostedZoneID'
+  DNSName:
+    Description: 'The DNS name for the ECS cluster load balancer.'
+    Value: !GetAtt 'LoadBalancer.DNSName'
+    Export:
+      Name: !Sub '${AWS::StackName}-DNSName'
+  URL:
+    Description: 'URL to the ECS cluster.'
+    Value: !Sub 'http://${LoadBalancer.DNSName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-URL'

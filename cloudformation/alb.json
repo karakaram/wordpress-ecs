@@ -1,0 +1,10 @@
+[
+  {
+    "ParameterKey": "ParentVPCStack",
+    "ParameterValue": "cashbook-vpc-3azs"
+  },
+  {
+    "ParameterKey": "ParentAlertStack",
+    "ParameterValue": "my-alert"
+  }
+]
