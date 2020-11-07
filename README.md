@@ -39,6 +39,7 @@ http://localhost:8080
 ## Put parameters to AWS System Manager Parameter Store
 
 ```
+aws ssm put-parameter --name "/my/sns/email" --type String --value ${EMAIL}
 aws ssm put-parameter --name "/my/db/username" --type String --value ${DATABASE_USERNAME}
 aws ssm put-parameter --name "/my/db/password" --type String --value ${DATABASE_PASSWORD}
 ```
