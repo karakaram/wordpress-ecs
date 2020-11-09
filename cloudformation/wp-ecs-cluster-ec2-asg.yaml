@@ -1,0 +1,239 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ECS cluster'
+Parameters:
+  ParentVPCStack:
+    Description: 'Stack name of parent VPC stack based on vpc/vpc-*azs.yaml template.'
+    Type: String
+  ParentLoadBalancerStack:
+    Description: 'Stack name of parent LoadBalancer stack based on vpc/vpc-*azs.yaml template.'
+    Type: String
+  ParentAlertStack:
+    Description: 'Optional but recommended stack name of parent alert stack based on operations/alert.yaml template.'
+    Type: String
+    Default: ''
+  ParentClientStack1:
+    Description: 'Optional stack name of parent Client Security Group stack based on state/client-sg.yaml template to allow network access from the cluster to whatever uses the client security group.'
+    Type: String
+    Default: ''
+  KeyName:
+    Description: 'Optional key pair of the ec2-user to establish a SSH connection to the EC2 instances of the ECS cluster.'
+    Type: String
+    Default: ''
+  SubnetsReach:
+    Description: 'Should the cluster have direct access to the Internet or do you prefer private subnets with NAT?'
+    Type: String
+    Default: Public
+    AllowedValues:
+      - Public
+      - Private
+  LoadBalancerCertificateArn:
+    Description: 'Optional Amazon Resource Name (ARN) of the certificate to associate with the load balancer.'
+    Type: String
+    Default: ''
+  InstanceType1:
+    Description: 'The instance type of the EC2 instances of the ECS cluster.'
+    Type: String
+    Default: t3.small
+  InstanceType2:
+    Description: 'The spare instance type of the EC2 instances of the ECS cluster.'
+    Type: String
+    Default: t2.small
+  LogsRetentionInDays:
+    Description: 'Specifies the number of days you want to retain log events in the specified log group.'
+    Type: Number
+    Default: 7
+  DesiredCapacity:
+    Description: 'The DesiredCapacity of the Auto Scaling group.'
+    Type: Number
+    Default: 1
+  MaxSize:
+    Description: 'The maximum size of the Auto Scaling group.'
+    Type: Number
+    Default: 2
+  MinSize:
+    Description: 'The minimum size of the Auto Scaling group.'
+    Type: Number
+    Default: 0
+  StopContainerTimeoutInSeconds:
+    Description: 'Time in seconds the ECS agent waits before killing a stopped container (see ECS_CONTAINER_STOP_TIMEOUT).'
+    Type: Number
+    Default: 30
+    ConstraintDescription: 'Must be in the range [30-3600]'
+    MinValue: 30
+    MaxValue: 3600
+Mappings:
+  # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
+  # aws ssm get-parameters --names /aws/service/ecs/optimized-ami/amazon-linux-2/recommended
+  RegionMap:
+    'ap-northeast-1':
+      ECSAMI: 'ami-02265963d1614d04d'
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, '']]
+  HasLoadBalancerCertificateArn: !Not [!Equals [!Ref LoadBalancerCertificateArn, '']]
+  HasAlertTopic: !Not [!Equals [!Ref ParentAlertStack, '']]
+  HasClientSecurityGroup1: !Not [!Equals [!Ref ParentClientStack1, '']]
+Resources:
+  Cluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties: {}
+  LogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      RetentionInDays: !Ref LogsRetentionInDays
+  InstanceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role'
+        - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
+      AssumeRolePolicyDocument:
+        Version: '2008-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'ec2.amazonaws.com'
+            Action: 'sts:AssumeRole'
+  InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref 'InstanceRole'
+  SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'ecs-cluster'
+      VpcId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-VPC'}
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: {'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-SecurityGroupID'}
+          FromPort: 0
+          ToPort: 65535
+          IpProtocol: tcp
+#  DefaultTargetGroup: # this is used as the fall-back target group and is used to health checking the ECS agent. Services use their own ListenerRules to accept traffic based on path prefixes.
+#    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+#    Properties:
+#      HealthCheckIntervalSeconds: 15
+#      HealthCheckPort: '51678'
+#      HealthCheckPath: '/'
+#      HealthCheckProtocol: HTTP
+#      HealthCheckTimeoutSeconds: 10
+#      HealthyThresholdCount: 2
+#      UnhealthyThresholdCount: 2
+#      Matcher:
+#        HttpCode: '200-299'
+#      Port: 80 # port 80 is a reserved port that is never used by the agent, so we are safe to use it here
+#      Protocol: HTTP
+#      VpcId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-VPC'}
+#      TargetGroupAttributes:
+#        - Key: 'deregistration_delay.timeout_seconds'
+#          Value: '0'
+  HttpsListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Condition: HasLoadBalancerCertificateArn
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref LoadBalancerCertificateArn
+      DefaultActions:
+#        - TargetGroupArn: !Ref DefaultTargetGroup
+#          Type: forward
+        - FixedResponseConfig:
+            ContentType: text/plain
+            MessageBody: Not Authorized
+            StatusCode: 403
+          Type: fixed-response
+      LoadBalancerArn: {'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-LoadBalancerARN'}
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: 'ELBSecurityPolicy-FS-1-2-Res-2019-08'
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        InstanceType: !Ref InstanceType1
+        SecurityGroupIds:
+          - !Ref SecurityGroup
+          - !If [HasClientSecurityGroup1, {'Fn::ImportValue': !Sub '${ParentClientStack1}-ClientSecurityGroup'}, !Ref 'AWS::NoValue']
+        IamInstanceProfile:
+          Name: !Ref 'InstanceProfile'
+        KeyName: !If [HasKeyName, !Ref KeyName, !Ref 'AWS::NoValue']
+        ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', ECSAMI]
+        UserData:
+          'Fn::Base64': !Sub |
+            #!/bin/bash -ex
+            trap '/opt/aws/bin/cfn-signal -e 1 --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}' ERR
+            echo "ECS_CLUSTER=${Cluster}" >> /etc/ecs/ecs.config
+            echo "ECS_CONTAINER_STOP_TIMEOUT=${StopContainerTimeoutInSeconds}s" >> /etc/ecs/ecs.config
+            yum install -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource LaunchTemplate --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      Cooldown: '120'
+      DesiredCapacity: !Ref 'DesiredCapacity'
+      HealthCheckGracePeriod: 900 # needs to be in sync with CreationPolicy/UpdatePolicy timeout
+      HealthCheckType: ELB
+      MaxSize: !Ref 'MaxSize'
+      MinSize: !Ref 'MinSize'
+      MixedInstancesPolicy:
+        InstancesDistribution:
+          OnDemandBaseCapacity: 0
+          OnDemandPercentageAboveBaseCapacity: 0
+          SpotInstancePools: !Ref 'DesiredCapacity'
+        LaunchTemplate:
+          LaunchTemplateSpecification:
+            LaunchTemplateId: !Ref 'LaunchTemplate'
+            Version: !GetAtt LaunchTemplate.LatestVersionNumber
+          Overrides:
+            - InstanceType: !Ref 'InstanceType1'
+            - InstanceType: !Ref 'InstanceType2'
+      Tags:
+        - Key: Name
+          Value: 'wp-ecs-spot'
+          PropagateAtLaunch: true
+#      TargetGroupARNs:
+#        - !Ref DefaultTargetGroup
+      VPCZoneIdentifier: !Split [',', {'Fn::ImportValue': !Sub '${ParentVPCStack}-Subnets${SubnetsReach}'}]
+Outputs:
+  TemplateVersion:
+    Description: 'ECS Cluster template version.'
+    Value: '12.12.0'
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  Cluster:
+    Description: 'ECS cluster.'
+    Value: !Ref Cluster
+    Export:
+      Name: !Sub '${AWS::StackName}-Cluster'
+  HttpsListener:
+    Condition: HasLoadBalancerCertificateArn
+    Description: 'ALB HTTPS listener for services.'
+    Value: !Ref HttpsListener
+    Export:
+      Name: !Sub '${AWS::StackName}-HttpsListener'
+  CanonicalHostedZoneID:
+    Description: 'The ID of the Amazon Route 53 hosted zone associated with the load balancer.'
+    Value: { 'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-CanonicalHostedZoneID' }
+    Export:
+      Name: !Sub '${AWS::StackName}-CanonicalHostedZoneID'
+  VPC:
+    Description: 'VPC of ECS cluster.'
+    Value: { 'Fn::ImportValue': !Sub '${ParentVPCStack}-VPC' }
+    Export:
+      Name: !Sub '${AWS::StackName}-VPC'
+  SecurityGroup:
+    Description: 'Security Group of ECS cluster.'
+    Value: !Ref SecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroup'
+  LogGroup:
+    Description: 'Log group of ECS cluster.'
+    Value: !Ref LogGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-LogGroup'
+  DNSName:
+    Description: 'The DNS name for the ECS cluster load balancer.'
+    Value: { 'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-DNSName' }
+    Export:
+      Name: !Sub '${AWS::StackName}-DNSName'

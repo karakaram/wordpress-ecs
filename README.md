@@ -65,7 +65,14 @@ mysql -u${user} -p -h ${host} --default-character-set=utf8mb4 wordpress < dump.s
 mysqldump -u${user} -p -h ${host} --single-transaction --quick --default-character-set=utf8mb4 --set-charset wordpress > dump.sql
 ```
 
-## Setting up WordPress in ECS EC2 mode
+## Setting up WordPress using CloudFormation
+
+```
+cfn-create-stack -t cloudformation/alb.yaml -s my-alb
+cfn-create-stack -t cloudformation/wp-ecs-cluster-ec2-asg.yaml
+```
+
+## Setting up WordPress using ecs-cli
 
 ```
 ecs-cli configure --cluster wp-ec2 --default-launch-type EC2 --config-name wp-ec2 --region ap-northeast-1
