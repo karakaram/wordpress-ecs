@@ -1,0 +1,271 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "ECS: service that runs on an ECS cluster and uses the cluster's ALB based on ecs/cluster.yaml, a cloudonaut.io template"
+Parameters:
+  ParentClusterStack:
+    Description: 'Stack name of parent Cluster stack based on wp-ecs-cluster-ec2-asg.yaml template.'
+    Type: String
+  ParentLoadBalancerStack:
+    Description: 'Stack name of parent LoadBalancer stack based on alb.yaml template.'
+    Type: String
+  ParentEFSStack:
+    Description: 'Stack name of parent EFS stack based on efs.yaml template.'
+    Type: String
+  ParentZoneStack:
+    Description: 'Optional stack name of parent zone stack based on vpc/zone-*.yaml template.'
+    Type: String
+  S3BucketName:
+    Description: 'S3 Bucket for storing media files.'
+    Type: String
+  LoadBalancerDeregistrationDelay:
+    Description: 'The amount time (in seconds) to wait before changing the state of a deregistering target from draining to unused.'
+    Type: Number
+    Default: 60
+    ConstraintDescription: 'Must be in the range [0-3600]'
+    MinValue: 0
+    MaxValue: 3600
+  WebImage:
+    Description: 'The image to use for a Web container, which is passed directly to the Docker daemon.'
+    Type: String
+  AppImage:
+    Description: 'The image to use for a App container, which is passed directly to the Docker daemon.'
+    Type: String
+  DesiredCount:
+    Description: 'The number of simultaneous tasks, that you want to run on the cluster.'
+    Type: Number
+    Default: 0
+  MaxCapacity:
+    Description: 'The maximum number of simultaneous tasks, that you want to run on the cluster.'
+    Type: Number
+    Default: 2
+  MinCapacity:
+    Description: 'The minimum number of simultaneous tasks, that you want to run on the cluster.'
+    Type: Number
+    Default: 0
+  SubDomainNameWithDot:
+    Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDot}§{HostedZoneName}. Leave blank for naked (or apex and bare) domain. Requires ParentZoneStack parameter!'
+    Type: String
+    Default: ''
+  HealthCheckGracePeriod:
+    Description: 'The period of time, in seconds, that the Amazon ECS service scheduler ignores unhealthy Elastic Load Balancing target health checks after a task has first started.'
+    Type: Number
+    Default: 60
+    MinValue: 0
+    MaxValue: 1800
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref 'S3BucketName'
+  TaskRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2008-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: inline
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: ListObjectsInBucket
+                Effect: Allow
+                Action: 's3:ListBucket'
+                Resource: !GetAtt 'S3Bucket.Arn'
+              - Sid: AllObjectActions
+                Effect: Allow
+                Action: 's3:*Object'
+                Resource: !GetAtt 'S3Bucket.Arn'
+  TaskDefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: 'wp-ec2-cfn'
+      TaskRoleArn: !Ref 'TaskRole'
+      NetworkMode: bridge
+      RequiresCompatibilities:
+        - EC2
+      ExecutionRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/ecsTaskExecutionRole'
+      ContainerDefinitions:
+        - Name: web
+          Image: !Ref 'WebImage'
+          Links:
+            - app
+          Memory: 128
+          PortMappings:
+            - ContainerPort: 80
+              Protocol: tcp
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              'awslogs-region': !Ref 'AWS::Region'
+              'awslogs-group': {'Fn::ImportValue': !Sub '${ParentClusterStack}-LogGroup'}
+              'awslogs-stream-prefix': 'wp-web-ec2'
+          MountPoints:
+            - ContainerPath: /var/www/html
+              ReadOnly: false
+              SourceVolume: efs-volume
+        - Name: app
+          Image: !Ref 'AppImage'
+          Memory: 512
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              'awslogs-region': !Ref 'AWS::Region'
+              'awslogs-group': {'Fn::ImportValue': !Sub '${ParentClusterStack}-LogGroup'}
+              'awslogs-stream-prefix': 'wp-app-ec2'
+          MountPoints:
+            - ContainerPath: /var/www/html
+              ReadOnly: false
+              SourceVolume: efs-volume
+      Volumes:
+        - EFSVolumeConfiguration:
+            AuthorizationConfig:
+              AccessPointId: {'Fn::ImportValue': !Sub '${ParentEFSStack}-AccessPointID'}
+            FilesystemId: {'Fn::ImportValue': !Sub '${ParentEFSStack}-FileSystemID'}
+            TransitEncryption: 'ENABLED'
+          Name: efs-volume
+  TaskDefinitionCron:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: 'wp-cron-ec2-cfn'
+      NetworkMode: bridge
+      RequiresCompatibilities:
+        - EC2
+      ExecutionRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/ecsTaskExecutionRole'
+      ContainerDefinitions:
+        - Name: app
+          Image: !Ref 'AppImage'
+          Memory: 128
+          Essential: true
+          Command:
+            - "su-exec"
+            - "nginx"
+            - "wp"
+            - "cron"
+            - "event"
+            - "run"
+            - "--due-now"
+            - "--path=/var/www/html"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              'awslogs-region': !Ref 'AWS::Region'
+              'awslogs-group': { 'Fn::ImportValue': !Sub '${ParentClusterStack}-LogGroup' }
+              'awslogs-stream-prefix': 'wp-cron-ec2'
+          MountPoints:
+            - ContainerPath: /var/www/html
+              ReadOnly: false
+              SourceVolume: efs-volume
+      Volumes:
+        - EFSVolumeConfiguration:
+            AuthorizationConfig:
+              AccessPointId: { 'Fn::ImportValue': !Sub '${ParentEFSStack}-AccessPointID' }
+            FilesystemId: { 'Fn::ImportValue': !Sub '${ParentEFSStack}-FileSystemID' }
+            TransitEncryption: 'ENABLED'
+          Name: efs-volume
+  RecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      AliasTarget:
+        HostedZoneId: {'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-CanonicalHostedZoneID'}
+        DNSName: {'Fn::ImportValue': !Sub '${ParentClusterStack}-DNSName'}
+      HostedZoneId: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneId'}
+      Name: !Sub
+        - '${SubDomainNameWithDot}${HostedZoneName}'
+        - SubDomainNameWithDot: !Ref SubDomainNameWithDot
+          HostedZoneName: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName'}
+      Type: A
+  LoadBalancerTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      HealthCheckIntervalSeconds: 15
+      HealthCheckPath: '/health-check.php'
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      Matcher:
+        HttpCode: '200-299'
+      Port: 80
+      Protocol: HTTP
+      VpcId: {'Fn::ImportValue': !Sub '${ParentClusterStack}-VPC'}
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: !Ref LoadBalancerDeregistrationDelay
+  LoadBalancerHttpsListenerRule:
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Sub
+              - '${SubDomainNameWithDot}${HostedZoneName}'
+              - SubDomainNameWithDot: !Ref SubDomainNameWithDot
+                HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+      ListenerArn: {'Fn::ImportValue': !Sub '${ParentClusterStack}-HttpsListener'}
+      Priority: 1
+  ServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole'
+      AssumeRolePolicyDocument:
+        Version: '2008-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'ecs.amazonaws.com'
+            Action: 'sts:AssumeRole'
+  Service:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: {'Fn::ImportValue': !Sub '${ParentClusterStack}-Cluster'}
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: !Ref DesiredCount
+      HealthCheckGracePeriodSeconds: !Ref HealthCheckGracePeriod
+      LoadBalancers:
+        - ContainerName: web
+          ContainerPort: 80
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+      Role: !GetAtt 'ServiceRole.Arn'
+      TaskDefinition: !Ref TaskDefinition
+  TaskScheduleEvents:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      Name: wp-cron
+      ScheduleExpression: rate(15 minutes)
+      State: 'ENABLED'
+      Targets:
+        - Arn: { 'Fn::ImportValue': !Sub '${ParentClusterStack}-ClusterARN' }
+          EcsParameters:
+            TaskDefinitionArn: !Ref TaskDefinitionCron
+          Id: wp-cron-ec2
+          RoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/ecsEventsRole'
+Outputs:
+  TemplateVersion:
+    Description: 'template version.'
+    Value: '12.12.0'
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  DNSName:
+    Description: 'The DNS name for the ECS cluster/service load balancer.'
+    Value: {'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-DNSName'}
+    Export:
+      Name: !Sub '${AWS::StackName}-DNSName'
+  Service:
+    Description: 'ECS service.'
+    Value: !Ref Service
+    Export:
+      Name: !Sub '${AWS::StackName}-Service'

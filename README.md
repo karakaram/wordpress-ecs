@@ -44,6 +44,13 @@ aws ssm put-parameter --name "/my/db/username" --type String --value ${DATABASE_
 aws ssm put-parameter --name "/my/db/password" --type String --value ${DATABASE_PASSWORD}
 ```
 
+## Create Repositories
+
+```
+aws ecr create-repository --repository-name wp-web
+aws ecr create-repository --repository-name wp-app
+```
+
 ## Create database if you need
 
 ```
@@ -70,6 +77,24 @@ mysqldump -u${user} -p -h ${host} --single-transaction --quick --default-charact
 ```
 cfn-create-stack -t cloudformation/alb.yaml -s my-alb
 cfn-create-stack -t cloudformation/wp-ecs-cluster-ec2-asg.yaml
+cfn-create-stack -t cloudformation/wp-ecs-service-ec2.yaml
+
+CLUSTER=$(aws cloudformation describe-stack-resource --stack-name wp-ecs-cluster-ec2-asg --logical-resource-id Cluster --query StackResourceDetail.PhysicalResourceId --output text)
+SERVICE=$(aws cloudformation describe-stack-resource --stack-name wp-ecs-service-ec2 --logical-resource-id Service --query StackResourceDetail.PhysicalResourceId --output text)
+aws ecs update-service --cluster $CLUSTER --service $SERVICE --desired-count 1
+aws ecs update-service --cluster $CLUSTER --service $SERVICE --desired-count 0
+```
+
+## Mounting EFS if needed
+
+```
+yum install -y amazon-efs-utils
+mkdir -p /root/efs
+
+ACCESS_POINT=$(aws cloudformation describe-stack-resource --stack-name my-efs --logical-resource-id EFSAccessPoint --query StackResourceDetail.PhysicalResourceId --output text)
+FILE_SYSTEM=$(aws cloudformation describe-stack-resource --stack-name my-efs --logical-resource-id EFSFileSystem --query StackResourceDetail.PhysicalResourceId --output text)
+echo "mount -t efs -o tls,accesspoint=$ACCESS_POINT $FILE_SYSTEM /root/efs"
+umount /root/efs
 ```
 
 ## Setting up WordPress using ecs-cli

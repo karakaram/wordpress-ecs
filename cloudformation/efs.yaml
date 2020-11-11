@@ -1,0 +1,152 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EFS template'
+Parameters:
+  ParentVPCStack:
+    Description: 'Stack name of parent VPC stack based on vpc/vpc-*azs.yaml template.'
+    Type: String
+  ParentClientStack:
+    Description: 'Stack name of parent client stack based on state/client-sg.yaml template.'
+    Type: String
+  ParentAlertStack:
+    Description: 'Optional but recommended stack name of parent alert stack based on operations/alert.yaml template.'
+    Type: String
+    Default: ''
+  PermissionsBoundary:
+    Description: 'Optional ARN for a policy that will be used as the permission boundary for all roles created by this template.'
+    Type: String
+    Default: ''
+  EFSProvisionedThroughputInMibps:
+    Description: 'The provisioned throughput for the Elastic File System (EFS) in Mibps. Default is 0 which enables the bursting mode and disables provisioned throughput.'
+    Type: Number
+    Default: 0
+  EFSBackupRetentionPeriod:
+    Description: 'The number of days to keep backups of the EFS file system (set to 0 to disable).'
+    Type: Number
+    MinValue: 0
+    MaxValue: 35
+    Default: 30
+  EFSBackupScheduleExpression:
+    Description: 'A CRON expression specifying when AWS Backup initiates a backup job.'
+    Type: String
+    Default: 'cron(0 5 ? * * *)'
+Conditions:
+  HasAlertTopic: !Not [!Equals [!Ref ParentAlertStack, '']]
+  HasEFSProvisionedThroughput: !Not [!Condition HasNotEFSProvisionedThroughput]
+  HasNotEFSProvisionedThroughput: !Equals [!Ref EFSProvisionedThroughputInMibps, '0']
+  HasAlertTopicAndEFSProvisionedThroughput: !And [!Condition HasAlertTopic, !Condition HasEFSProvisionedThroughput]
+  HasAlertTopicAndNotEFSProvisionedThroughput: !And [!Condition HasAlertTopic, !Condition HasNotEFSProvisionedThroughput]
+  HasEFSBackupRetentionPeriod: !Not [!Equals [!Ref EFSBackupRetentionPeriod, 0]]
+Resources:
+  EFSSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allowing access to EFS
+      VpcId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-VPC'}
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          SourceSecurityGroupId: {'Fn::ImportValue': !Sub '${ParentClientStack}-ClientSecurityGroup'}
+  EFSFileSystem:
+    Type: 'AWS::EFS::FileSystem'
+    Properties:
+      ThroughputMode: !If [HasEFSProvisionedThroughput, 'provisioned', 'bursting']
+      ProvisionedThroughputInMibps: !If [HasEFSProvisionedThroughput, !Ref EFSProvisionedThroughputInMibps, !Ref 'AWS::NoValue']
+      FileSystemTags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}'
+  EFSAccessPoint:
+    Type: 'AWS::EFS::AccessPoint'
+    Properties:
+      FileSystemId: !Ref 'EFSFileSystem'
+  EFSMountTargetA:
+    Type: 'AWS::EFS::MountTarget'
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-SubnetAPrivate'}
+      SecurityGroups:
+        - !Ref EFSSecurityGroup
+  EFSMountTargetB:
+    Type: 'AWS::EFS::MountTarget'
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-SubnetBPrivate'}
+      SecurityGroups:
+        - !Ref EFSSecurityGroup
+  EFSMountTargetC:
+    Type: 'AWS::EFS::MountTarget'
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-SubnetCPrivate'}
+      SecurityGroups:
+        - !Ref EFSSecurityGroup
+#  BackupVault: # cannot be deleted with data
+#    Condition: HasEFSBackupRetentionPeriod
+#    Type: 'AWS::Backup::BackupVault'
+#    Properties:
+#      BackupVaultName: !Ref 'AWS::StackName'
+#      Notifications: !If [HasAlertTopic, {BackupVaultEvents: [BACKUP_JOB_STARTED, BACKUP_JOB_COMPLETED, RESTORE_JOB_STARTED, RESTORE_JOB_COMPLETED, RECOVERY_POINT_MODIFIED], SNSTopicArn: {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}}, !Ref 'AWS::NoValue']
+#  BackupPlan:
+#    Condition: HasEFSBackupRetentionPeriod
+#    Type: 'AWS::Backup::BackupPlan'
+#    Properties:
+#      BackupPlan:
+#        BackupPlanName: !Ref 'AWS::StackName'
+#        BackupPlanRule:
+#          - CompletionWindowMinutes: 1440
+#            Lifecycle:
+#              DeleteAfterDays: !Ref EFSBackupRetentionPeriod
+#            RuleName: !Ref 'AWS::StackName'
+#            ScheduleExpression: !Ref EFSBackupScheduleExpression
+#            StartWindowMinutes: 60
+#            TargetBackupVault: !Ref BackupVault
+#  BackupRole:
+#    Condition: HasEFSBackupRetentionPeriod
+#    Type: 'AWS::IAM::Role'
+#    Properties:
+#      AssumeRolePolicyDocument:
+#        Version: '2012-10-17'
+#        Statement:
+#          - Effect: Allow
+#            Principal:
+#              Service: 'backup.amazonaws.com'
+#            Action: 'sts:AssumeRole'
+#      PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundary, !Ref 'AWS::NoValue']
+#      Policies:
+#        - PolicyName: backup
+#          PolicyDocument:
+#            Version: '2012-10-17'
+#            Statement:
+#              - Effect: Allow
+#                Action:
+#                  - 'elasticfilesystem:Backup'
+#                  - 'elasticfilesystem:DescribeTags'
+#                Resource: !Sub 'arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${EFSFileSystem}'
+#  BackupSelection:
+#    Condition: HasEFSBackupRetentionPeriod
+#    Type: 'AWS::Backup::BackupSelection'
+#    Properties:
+#      BackupPlanId: !Ref BackupPlan
+#      BackupSelection:
+#        IamRoleArn: !GetAtt 'BackupRole.Arn'
+#        Resources:
+#          - !Sub 'arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${EFSFileSystem}'
+#        SelectionName: !Ref 'AWS::StackName'
+Outputs:
+  TemplateVersion:
+    Description: 'template version.'
+    Value: '13.0.0'
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  FileSystemID:
+    Description: 'The EFS FileSystemID.'
+    Value: !Ref 'EFSFileSystem'
+    Export:
+      Name: !Sub '${AWS::StackName}-FileSystemID'
+  AccessPointID:
+    Description: 'The EFS AccessPointID.'
+    Value: !Ref 'EFSAccessPoint'
+    Export:
+      Name: !Sub '${AWS::StackName}-AccessPointID'

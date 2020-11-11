@@ -206,6 +206,11 @@ Outputs:
     Value: !Ref Cluster
     Export:
       Name: !Sub '${AWS::StackName}-Cluster'
+  ClusterARN:
+    Description: 'ECS cluster ARN.'
+    Value: !GetAtt 'Cluster.Arn'
+    Export:
+      Name: !Sub '${AWS::StackName}-ClusterARN'
   HttpsListener:
     Condition: HasLoadBalancerCertificateArn
     Description: 'ALB HTTPS listener for services.'
