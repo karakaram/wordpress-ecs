@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "karakaram-zone-public"
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDot",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDotRedirect",
+    "ParameterValue": "www."
+  },
+  {
+    "ParameterKey": "CloudFrontKey",
+    "ParameterValue": "/my/cloudfront/key"
+  },
+  {
+    "ParameterKey": "AcmCertificateARN",
+    "ParameterValue": "arn:aws:acm:us-east-1:274682760725:certificate/450adae7-e47d-4436-85f4-acf2ffb7bf8b"
+  }
+]

@@ -42,6 +42,7 @@ http://localhost:8080
 aws ssm put-parameter --name "/my/sns/email" --type String --value ${EMAIL}
 aws ssm put-parameter --name "/my/db/username" --type String --value ${DATABASE_USERNAME}
 aws ssm put-parameter --name "/my/db/password" --type String --value ${DATABASE_PASSWORD}
+aws ssm put-parameter --name "/my/cloudfront/key" --type String --value ${CLOUDFRONT_KEY}
 ```
 
 ## Create Repositories
@@ -74,15 +75,28 @@ mysqldump -u${user} -p -h ${host} --single-transaction --quick --default-charact
 
 ## Setting up WordPress using CloudFormation
 
+Create Stacks
+
 ```
-cfn-create-stack -t cloudformation/alb.yaml -s my-alb
-cfn-create-stack -t cloudformation/wp-ecs-cluster-ec2-asg.yaml
-cfn-create-stack -t cloudformation/wp-ecs-service-ec2.yaml
+cfn create -t cloudformation/alb.yaml -s my-alb
+cfn create -t cloudformation/wp-ecs-cluster-ec2-asg.yaml
+cfn create -t cloudformation/wp-ecs-service-ec2.yaml
+cfn create -t cloudformation/wp-cloudfront-alb.yaml
+cfn create -t cloudformation/wp-cloudfront-media.yaml
+cfn create -t cloudformation/wp-cloudfront-root.yaml
 
 CLUSTER=$(aws cloudformation describe-stack-resource --stack-name wp-ecs-cluster-ec2-asg --logical-resource-id Cluster --query StackResourceDetail.PhysicalResourceId --output text)
 SERVICE=$(aws cloudformation describe-stack-resource --stack-name wp-ecs-service-ec2 --logical-resource-id Service --query StackResourceDetail.PhysicalResourceId --output text)
 aws ecs update-service --cluster $CLUSTER --service $SERVICE --desired-count 1
 aws ecs update-service --cluster $CLUSTER --service $SERVICE --desired-count 0
+
+BUCKET=$(aws cloudformation describe-stack-resource --stack-name wp-cloudfront-root --logical-resource-id S3Bucket --query StackResourceDetail.PhysicalResourceId --output text)
+RECORDSET=$(aws cloudformation describe-stack-resource --stack-name wp-cloudfront-alb --logical-resource-id Route53RecordSet --query StackResourceDetail.PhysicalResourceId --output text)
+aws s3api put-object --bucket $BUCKET --key ads.txt --body ads.txt --content-type text/plain
+aws s3api head-object --bucket $BUCKET --key ads.txt
+
+aws s3api put-object --bucket $BUCKET --key index.html --body index.html --content-type text/html --website-redirect-location "https://$RECORDSET"
+aws s3api head-object --bucket $BUCKET --key index.html
 ```
 
 ## Mounting EFS if needed

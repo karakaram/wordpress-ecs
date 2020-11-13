@@ -16,8 +16,24 @@
     "ParameterValue": "karakaram-zone-public"
   },
   {
-    "ParameterKey": "S3BucketName",
-    "ParameterValue": "wp-ecs-media"
+    "ParameterKey": "S3BucketARN",
+    "ParameterValue": "arn:aws:s3:::media.karakaram.com"
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDotLoadBalancer",
+    "ParameterValue": "wp-alb-ecs-ec2."
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDotCloudFront",
+    "ParameterValue": "www."
+  },
+  {
+    "ParameterKey": "CloudFrontCustomHeaderName",
+    "ParameterValue": "my-cloudfront-key"
+  },
+  {
+    "ParameterKey": "CloudFrontCustomHeaderValue",
+    "ParameterValue": "/my/cloudfront/key"
   },
   {
     "ParameterKey": "WebImage",
@@ -26,9 +42,5 @@
   {
     "ParameterKey": "AppImage",
     "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wp-app"
-  },
-  {
-    "ParameterKey": "SubDomainNameWithDot",
-    "ParameterValue": "wp-alb-ecs-ec2."
   }
 ]

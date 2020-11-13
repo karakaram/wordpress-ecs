@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "karakaram-zone-public"
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDot",
+    "ParameterValue": "media."
+  },
+  {
+    "ParameterKey": "AcmCertificateARN",
+    "ParameterValue": "arn:aws:acm:us-east-1:274682760725:certificate/350c7040-a278-40a7-9a26-1285d26713ed"
+  }
+]

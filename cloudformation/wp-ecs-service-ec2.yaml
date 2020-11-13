@@ -14,9 +14,21 @@ Parameters:
   ParentZoneStack:
     Description: 'Optional stack name of parent zone stack based on vpc/zone-*.yaml template.'
     Type: String
-  S3BucketName:
-    Description: 'S3 Bucket for storing media files.'
+  S3BucketARN:
+    Description: 'S3 Bucket Arn to store media files.'
     Type: String
+  SubDomainNameWithDotLoadBalancer:
+    Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDotLoadBalancer}§{HostedZoneName}. Leave blank for naked (or apex and bare) domain. Requires ParentZoneStack parameter!'
+    Type: String
+  SubDomainNameWithDotCloudFront:
+    Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDotCloudFront}§{HostedZoneName}. Leave blank for naked (or apex and bare) domain. Requires ParentZoneStack parameter!'
+    Type: String
+  CloudFrontCustomHeaderName:
+    Description: 'The name attached to Header in CloudFront.'
+    Type: String
+  CloudFrontCustomHeaderValue:
+    Description: 'The value attached to Header in CloudFront.'
+    Type: AWS::SSM::Parameter::Value<String>
   LoadBalancerDeregistrationDelay:
     Description: 'The amount time (in seconds) to wait before changing the state of a deregistering target from draining to unused.'
     Type: Number
@@ -42,10 +54,6 @@ Parameters:
     Description: 'The minimum number of simultaneous tasks, that you want to run on the cluster.'
     Type: Number
     Default: 0
-  SubDomainNameWithDot:
-    Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDot}§{HostedZoneName}. Leave blank for naked (or apex and bare) domain. Requires ParentZoneStack parameter!'
-    Type: String
-    Default: ''
   HealthCheckGracePeriod:
     Description: 'The period of time, in seconds, that the Amazon ECS service scheduler ignores unhealthy Elastic Load Balancing target health checks after a task has first started.'
     Type: Number
@@ -53,10 +61,6 @@ Parameters:
     MinValue: 0
     MaxValue: 1800
 Resources:
-  S3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref 'S3BucketName'
   TaskRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -75,11 +79,11 @@ Resources:
               - Sid: ListObjectsInBucket
                 Effect: Allow
                 Action: 's3:ListBucket'
-                Resource: !GetAtt 'S3Bucket.Arn'
+                Resource: !Ref 'S3BucketARN'
               - Sid: AllObjectActions
                 Effect: Allow
                 Action: 's3:*Object'
-                Resource: !GetAtt 'S3Bucket.Arn'
+                Resource: !Ref 'S3BucketARN'
   TaskDefinition:
     Type: 'AWS::ECS::TaskDefinition'
     Properties:
@@ -177,8 +181,8 @@ Resources:
         DNSName: {'Fn::ImportValue': !Sub '${ParentClusterStack}-DNSName'}
       HostedZoneId: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneId'}
       Name: !Sub
-        - '${SubDomainNameWithDot}${HostedZoneName}'
-        - SubDomainNameWithDot: !Ref SubDomainNameWithDot
+        - '${SubDomainNameWithDotLoadBalancer}${HostedZoneName}'
+        - SubDomainNameWithDotLoadBalancer: !Ref SubDomainNameWithDotLoadBalancer
           HostedZoneName: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName'}
       Type: A
   LoadBalancerTargetGroup:
@@ -206,11 +210,17 @@ Resources:
           TargetGroupArn: !Ref LoadBalancerTargetGroup
       Conditions:
         - Field: host-header
-          Values:
-            - !Sub
-              - '${SubDomainNameWithDot}${HostedZoneName}'
-              - SubDomainNameWithDot: !Ref SubDomainNameWithDot
-                HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+          HostHeaderConfig:
+            Values:
+              - !Sub
+                - '${SubDomainNameWithDotCloudFront}${HostedZoneName}'
+                - SubDomainNameWithDotCloudFront: !Ref SubDomainNameWithDotCloudFront
+                  HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+        - Field: http-header
+          HttpHeaderConfig:
+            HttpHeaderName: !Ref 'CloudFrontCustomHeaderName'
+            Values:
+              - !Ref 'CloudFrontCustomHeaderValue'
       ListenerArn: {'Fn::ImportValue': !Sub '${ParentClusterStack}-HttpsListener'}
       Priority: 1
   ServiceRole:

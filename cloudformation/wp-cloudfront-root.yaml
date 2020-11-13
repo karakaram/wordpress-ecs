@@ -1,0 +1,127 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "CloudFront"
+Parameters:
+  ParentZoneStack:
+    Description: 'stack name of parent zone stack based on vpc/zone-*.yaml template.'
+    Type: String
+  CloudFrontKey:
+    Description: 'The Key attached to Header in CloudFront.'
+    Type: AWS::SSM::Parameter::Value<String>
+  SubDomainNameWithDot:
+    Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDot}§{HostedZoneName}.'
+    Type: String
+    Default: ''
+  SubDomainNameWithDotRedirect:
+    Description: 'Name that is used to redirect  with trailing dot, e.g. §{SubDomainNameWithDotRedirect}§{HostedZoneName}.'
+    Type: String
+    Default: ''
+  AcmCertificateARN:
+    Description: 'The ACM Certificate ARN for the CloudFront distribution. Must be created in the us-east-1 region!'
+    Type: String
+Resources:
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub
+        - '${SubDomainNameWithDot}${HostedZoneName}'
+        - SubDomainNameWithDot: !Ref SubDomainNameWithDot
+          HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        RoutingRules:
+          - RoutingRuleCondition:
+              HttpErrorCodeReturnedEquals: '404'
+            RedirectRule:
+              HostName: !Sub
+                - '${SubDomainNameWithDotRedirect}${HostedZoneName}'
+                - SubDomainNameWithDotRedirect: !Ref 'SubDomainNameWithDotRedirect'
+                  HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+              Protocol: 'https'
+  S3BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Id: 'PolicyForCloudFrontPrivateContent'
+        Statement:
+          - Sid: 'Allow get requests referred by specific key'
+            Action:
+              - 's3:GetObject'
+              - 's3:GetObjectVersion'
+            Effect: Allow
+            Resource: !Sub 'arn:aws:s3:::${S3Bucket}/*'
+            Principal: '*'
+            Condition:
+              StringEquals:
+                'aws:Referer': !Ref 'CloudFrontKey'
+  CloudFrontDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Sub
+            - '${SubDomainNameWithDot}${HostedZoneName}'
+            - SubDomainNameWithDot: !Ref SubDomainNameWithDot
+              HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+        Comment: !Sub
+          - '${SubDomainNameWithDot}${HostedZoneName}'
+          - SubDomainNameWithDot: !Ref SubDomainNameWithDot
+            HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          MinTTL: 0 # in seconds
+          MaxTTL: 86400 # in seconds
+          DefaultTTL: 86400 # in seconds
+          TargetOriginId: s3origin
+          ViewerProtocolPolicy: 'redirect-to-https'
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: false
+        Origins:
+          - CustomOriginConfig:
+              OriginProtocolPolicy: 'http-only'
+            DomainName: !Sub
+              - '${SubDomainNameWithDot}${HostedZoneName}.s3-website-${AWS::Region}.amazonaws.com'
+              - SubDomainNameWithDot: !Ref SubDomainNameWithDot
+                HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+            Id: s3origin
+            OriginCustomHeaders:
+              - HeaderName: 'Referer'
+                HeaderValue: !Ref 'CloudFrontKey'
+        PriceClass: 'PriceClass_All'
+        ViewerCertificate:
+          AcmCertificateArn: !Ref AcmCertificateARN
+          MinimumProtocolVersion: 'TLSv1.2_2019'
+          SslSupportMethod: 'sni-only'
+  Route53RecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      HostedZoneId: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneId' }
+      Name: !Sub
+        - '${SubDomainNameWithDot}${HostedZoneName}'
+        - SubDomainNameWithDot: !Ref SubDomainNameWithDot
+          HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2 # Magic CloudFront number
+        DNSName: !GetAtt 'CloudFrontDistribution.DomainName'
+Outputs:
+  TemplateVersion:
+    Description: 'template version.'
+    Value: '12.12.0'
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
