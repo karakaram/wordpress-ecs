@@ -10,5 +10,9 @@
   {
     "ParameterKey": "ParentAlertStack",
     "ParameterValue": "my-alert"
+  },
+  {
+    "ParameterKey": "EFSBackupRetentionPeriod",
+    "ParameterValue": "3"
   }
 ]

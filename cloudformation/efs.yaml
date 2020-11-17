@@ -81,58 +81,36 @@ Resources:
       SubnetId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-SubnetCPrivate'}
       SecurityGroups:
         - !Ref EFSSecurityGroup
-#  BackupVault: # cannot be deleted with data
-#    Condition: HasEFSBackupRetentionPeriod
-#    Type: 'AWS::Backup::BackupVault'
-#    Properties:
-#      BackupVaultName: !Ref 'AWS::StackName'
-#      Notifications: !If [HasAlertTopic, {BackupVaultEvents: [BACKUP_JOB_STARTED, BACKUP_JOB_COMPLETED, RESTORE_JOB_STARTED, RESTORE_JOB_COMPLETED, RECOVERY_POINT_MODIFIED], SNSTopicArn: {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}}, !Ref 'AWS::NoValue']
-#  BackupPlan:
-#    Condition: HasEFSBackupRetentionPeriod
-#    Type: 'AWS::Backup::BackupPlan'
-#    Properties:
-#      BackupPlan:
-#        BackupPlanName: !Ref 'AWS::StackName'
-#        BackupPlanRule:
-#          - CompletionWindowMinutes: 1440
-#            Lifecycle:
-#              DeleteAfterDays: !Ref EFSBackupRetentionPeriod
-#            RuleName: !Ref 'AWS::StackName'
-#            ScheduleExpression: !Ref EFSBackupScheduleExpression
-#            StartWindowMinutes: 60
-#            TargetBackupVault: !Ref BackupVault
-#  BackupRole:
-#    Condition: HasEFSBackupRetentionPeriod
-#    Type: 'AWS::IAM::Role'
-#    Properties:
-#      AssumeRolePolicyDocument:
-#        Version: '2012-10-17'
-#        Statement:
-#          - Effect: Allow
-#            Principal:
-#              Service: 'backup.amazonaws.com'
-#            Action: 'sts:AssumeRole'
-#      PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundary, !Ref 'AWS::NoValue']
-#      Policies:
-#        - PolicyName: backup
-#          PolicyDocument:
-#            Version: '2012-10-17'
-#            Statement:
-#              - Effect: Allow
-#                Action:
-#                  - 'elasticfilesystem:Backup'
-#                  - 'elasticfilesystem:DescribeTags'
-#                Resource: !Sub 'arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${EFSFileSystem}'
-#  BackupSelection:
-#    Condition: HasEFSBackupRetentionPeriod
-#    Type: 'AWS::Backup::BackupSelection'
-#    Properties:
-#      BackupPlanId: !Ref BackupPlan
-#      BackupSelection:
-#        IamRoleArn: !GetAtt 'BackupRole.Arn'
-#        Resources:
-#          - !Sub 'arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${EFSFileSystem}'
-#        SelectionName: !Ref 'AWS::StackName'
+  BackupVault: # cannot be deleted with data
+    Condition: HasEFSBackupRetentionPeriod
+    Type: 'AWS::Backup::BackupVault'
+    Properties:
+      BackupVaultName: !Ref 'AWS::StackName'
+      Notifications: !If [HasAlertTopic, {BackupVaultEvents: [BACKUP_JOB_STARTED, BACKUP_JOB_COMPLETED, RESTORE_JOB_STARTED, RESTORE_JOB_COMPLETED, RECOVERY_POINT_MODIFIED], SNSTopicArn: {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}}, !Ref 'AWS::NoValue']
+  BackupPlan:
+    Condition: HasEFSBackupRetentionPeriod
+    Type: 'AWS::Backup::BackupPlan'
+    Properties:
+      BackupPlan:
+        BackupPlanName: !Ref 'AWS::StackName'
+        BackupPlanRule:
+          - CompletionWindowMinutes: 1440
+            Lifecycle:
+              DeleteAfterDays: !Ref EFSBackupRetentionPeriod
+            RuleName: !Ref 'AWS::StackName'
+            ScheduleExpression: !Ref EFSBackupScheduleExpression
+            StartWindowMinutes: 60
+            TargetBackupVault: !Ref BackupVault
+  BackupSelection:
+    Condition: HasEFSBackupRetentionPeriod
+    Type: 'AWS::Backup::BackupSelection'
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        IamRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/backup.amazonaws.com/AWSServiceRoleForBackup'
+        Resources:
+          - !Sub 'arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${EFSFileSystem}'
+        SelectionName: !Ref 'AWS::StackName'
 Outputs:
   TemplateVersion:
     Description: 'template version.'
