@@ -170,7 +170,7 @@ Resources:
           Compress: true
         Enabled: true
         HttpVersion: http2
-        IPV6Enabled: true
+        IPV6Enabled: false
         PriceClass: 'PriceClass_All'
         ViewerCertificate:
           AcmCertificateArn: !Ref AcmCertificateARN
