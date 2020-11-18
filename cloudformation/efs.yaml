@@ -32,11 +32,6 @@ Parameters:
     Default: 'cron(0 5 ? * * *)'
 Conditions:
   HasAlertTopic: !Not [!Equals [!Ref ParentAlertStack, '']]
-  HasEFSProvisionedThroughput: !Not [!Condition HasNotEFSProvisionedThroughput]
-  HasNotEFSProvisionedThroughput: !Equals [!Ref EFSProvisionedThroughputInMibps, '0']
-  HasAlertTopicAndEFSProvisionedThroughput: !And [!Condition HasAlertTopic, !Condition HasEFSProvisionedThroughput]
-  HasAlertTopicAndNotEFSProvisionedThroughput: !And [!Condition HasAlertTopic, !Condition HasNotEFSProvisionedThroughput]
-  HasEFSBackupRetentionPeriod: !Not [!Equals [!Ref EFSBackupRetentionPeriod, 0]]
 Resources:
   EFSSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
@@ -51,8 +46,9 @@ Resources:
   EFSFileSystem:
     Type: 'AWS::EFS::FileSystem'
     Properties:
-      ThroughputMode: !If [HasEFSProvisionedThroughput, 'provisioned', 'bursting']
-      ProvisionedThroughputInMibps: !If [HasEFSProvisionedThroughput, !Ref EFSProvisionedThroughputInMibps, !Ref 'AWS::NoValue']
+      BackupPolicy:
+        Status: 'ENABLED'
+      ThroughputMode: 'bursting'
       FileSystemTags:
         - Key: Name
           Value: !Sub '${AWS::StackName}'
@@ -82,13 +78,11 @@ Resources:
       SecurityGroups:
         - !Ref EFSSecurityGroup
   BackupVault: # cannot be deleted with data
-    Condition: HasEFSBackupRetentionPeriod
     Type: 'AWS::Backup::BackupVault'
     Properties:
       BackupVaultName: !Ref 'AWS::StackName'
       Notifications: !If [HasAlertTopic, {BackupVaultEvents: [BACKUP_JOB_STARTED, BACKUP_JOB_COMPLETED, RESTORE_JOB_STARTED, RESTORE_JOB_COMPLETED, RECOVERY_POINT_MODIFIED], SNSTopicArn: {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}}, !Ref 'AWS::NoValue']
   BackupPlan:
-    Condition: HasEFSBackupRetentionPeriod
     Type: 'AWS::Backup::BackupPlan'
     Properties:
       BackupPlan:
@@ -96,21 +90,20 @@ Resources:
         BackupPlanRule:
           - CompletionWindowMinutes: 1440
             Lifecycle:
-              DeleteAfterDays: !Ref EFSBackupRetentionPeriod
+              DeleteAfterDays: !Ref 'EFSBackupRetentionPeriod'
             RuleName: !Ref 'AWS::StackName'
-            ScheduleExpression: !Ref EFSBackupScheduleExpression
+            ScheduleExpression: !Ref 'EFSBackupScheduleExpression'
             StartWindowMinutes: 60
-            TargetBackupVault: !Ref BackupVault
+            TargetBackupVault: !Ref 'BackupVault'
   BackupSelection:
-    Condition: HasEFSBackupRetentionPeriod
     Type: 'AWS::Backup::BackupSelection'
     Properties:
       BackupPlanId: !Ref BackupPlan
       BackupSelection:
-        IamRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/backup.amazonaws.com/AWSServiceRoleForBackup'
-        Resources:
-          - !Sub 'arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${EFSFileSystem}'
         SelectionName: !Ref 'AWS::StackName'
+        IamRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole'
+        Resources:
+          - !Sub 'arn:aws:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${EFSFileSystem}'
 Outputs:
   TemplateVersion:
     Description: 'template version.'

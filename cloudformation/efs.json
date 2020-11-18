@@ -14,5 +14,9 @@
   {
     "ParameterKey": "EFSBackupRetentionPeriod",
     "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "EFSBackupScheduleExpression",
+    "ParameterValue": "cron(0 14 ? * * *)"
   }
 ]
