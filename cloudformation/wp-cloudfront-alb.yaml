@@ -59,9 +59,9 @@ Resources:
               QueryString: true
               Headers:
                 - 'Host'
-            DefaultTTL: 86400
-            MaxTTL: 86400
-            MinTTL: 86400
+            DefaultTTL: 604800
+            MaxTTL: 604800
+            MinTTL: 604800
             Compress: true
           - PathPattern: wp-includes/*
             TargetOriginId: 'alb'
@@ -73,9 +73,9 @@ Resources:
               QueryString: true
               Headers:
                 - 'Host'
-            DefaultTTL: 86400
-            MaxTTL: 86400
-            MinTTL: 86400
+            DefaultTTL: 604800
+            MaxTTL: 604800
+            MinTTL: 604800
             Compress: true
           - PathPattern: wp-admin/*
             TargetOriginId: 'alb'
