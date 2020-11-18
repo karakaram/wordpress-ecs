@@ -39,10 +39,7 @@ Resources:
               - '${SubDomainNameWithDotOrigin}${HostedZoneName}'
               - SubDomainNameWithDot: !Ref SubDomainNameWithDotOrigin
                 HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
-            Id: !Sub
-              - 'Custom-${SubDomainNameWithDotOrigin}${HostedZoneName}'
-              - SubDomainNameWithDot: !Ref SubDomainNameWithDotOrigin
-                HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+            Id: 'alb'
             CustomOriginConfig:
               OriginProtocolPolicy: 'https-only'
               OriginReadTimeout: 60
@@ -53,10 +50,7 @@ Resources:
                 HeaderValue: !Ref 'CustomHeaderValue'
         CacheBehaviors:
           - PathPattern: wp-content/*
-            TargetOriginId: !Sub
-              - 'Custom-${SubDomainNameWithDotOrigin}${HostedZoneName}'
-              - SubDomainNameWithDot: !Ref SubDomainNameWithDotOrigin
-                HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+            TargetOriginId: 'alb'
             ViewerProtocolPolicy: 'redirect-to-https'
             AllowedMethods:
               - GET
@@ -70,10 +64,7 @@ Resources:
             MinTTL: 86400
             Compress: true
           - PathPattern: wp-includes/*
-            TargetOriginId: !Sub
-              - 'Custom-${SubDomainNameWithDotOrigin}${HostedZoneName}'
-              - SubDomainNameWithDot: !Ref SubDomainNameWithDotOrigin
-                HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+            TargetOriginId: 'alb'
             ViewerProtocolPolicy: 'redirect-to-https'
             AllowedMethods:
               - GET
@@ -87,10 +78,7 @@ Resources:
             MinTTL: 86400
             Compress: true
           - PathPattern: wp-admin/*
-            TargetOriginId: !Sub
-              - 'Custom-${SubDomainNameWithDotOrigin}${HostedZoneName}'
-              - SubDomainNameWithDot: !Ref SubDomainNameWithDotOrigin
-                HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+            TargetOriginId: 'alb'
             ViewerProtocolPolicy: 'redirect-to-https'
             AllowedMethods:
               - GET
@@ -114,10 +102,7 @@ Resources:
             MinTTL: 0
             Compress: true
           - PathPattern: wp-login.php
-            TargetOriginId: !Sub
-              - 'Custom-${SubDomainNameWithDotOrigin}${HostedZoneName}'
-              - SubDomainNameWithDot: !Ref SubDomainNameWithDotOrigin
-                HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+            TargetOriginId: 'alb'
             ViewerProtocolPolicy: 'redirect-to-https'
             AllowedMethods:
               - GET
@@ -140,10 +125,7 @@ Resources:
             MinTTL: 0
             Compress: true
         DefaultCacheBehavior:
-          TargetOriginId: !Sub
-            - 'Custom-${SubDomainNameWithDotOrigin}${HostedZoneName}'
-            - SubDomainNameWithDot: !Ref SubDomainNameWithDotOrigin
-              HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+          TargetOriginId: 'alb'
           ViewerProtocolPolicy: 'redirect-to-https'
           AllowedMethods:
             - GET

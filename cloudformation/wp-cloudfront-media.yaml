@@ -66,14 +66,14 @@ Resources:
           MinTTL: 60 # in seconds
           MaxTTL: 86400 # in seconds
           DefaultTTL: 3600 # in seconds
-          TargetOriginId: s3origin
+          TargetOriginId: s3
           ViewerProtocolPolicy: 'redirect-to-https'
         Enabled: true
         HttpVersion: http2
         IPV6Enabled: false
         Origins:
           - DomainName: !GetAtt 'S3Bucket.RegionalDomainName'
-            Id: s3origin
+            Id: s3
             S3OriginConfig:
               OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}'
         PriceClass: 'PriceClass_All'
