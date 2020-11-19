@@ -148,7 +148,7 @@ Resources:
             QueryString: true
           DefaultTTL: 86400
           MaxTTL: 86400
-          MinTTL: 86400
+          MinTTL: 0
           Compress: true
         Enabled: true
         HttpVersion: http2
