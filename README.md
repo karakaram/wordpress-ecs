@@ -111,6 +111,17 @@ echo "mount -t efs -o tls,accesspoint=$ACCESS_POINT $FILE_SYSTEM /root/efs"
 umount /root/efs
 ```
 
+## Update Wordpress
+
+Run commands inside the container to update WordPress
+
+```
+su-exec nginx wp core version --extra
+su-exec nginx wp core update --locale=ja
+su-exec nginx wp core update-db
+su-exec nginx wp cache flush
+```
+
 ## Setting up WordPress using ecs-cli
 
 ```
