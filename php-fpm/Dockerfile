@@ -23,7 +23,10 @@ RUN set -ex; \
 		libzip-dev \
 	; \
 	\
-	docker-php-ext-configure gd --with-freetype --with-jpeg; \
+	docker-php-ext-configure gd \
+		--with-freetype \
+		--with-jpeg \
+	; \
 	docker-php-ext-install -j "$(nproc)" \
 		bcmath \
 		exif \
@@ -40,8 +43,8 @@ RUN set -ex; \
 			| sort -u \
 			| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
 	)"; \
-	apk add --virtual .wordpress-phpexts-rundeps $runDeps; \
-	apk del .build-deps
+	apk add --no-network --virtual .wordpress-phpexts-rundeps $runDeps; \
+	apk del --no-network .build-deps
 
 # set recommended PHP.ini settings
 # see https://secure.php.net/manual/en/opcache.installation.php
