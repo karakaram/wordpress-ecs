@@ -221,7 +221,7 @@ Resources:
             HttpHeaderName: !Ref 'CloudFrontCustomHeaderName'
             Values:
               - !Ref 'CloudFrontCustomHeaderValue'
-      ListenerArn: {'Fn::ImportValue': !Sub '${ParentClusterStack}-HttpsListener'}
+      ListenerArn: {'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-HttpsListener'}
       Priority: 1
   ServiceRole:
     Type: 'AWS::IAM::Role'

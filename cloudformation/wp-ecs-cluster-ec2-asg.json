@@ -22,9 +22,5 @@
   {
     "ParameterKey": "DesiredCapacity",
     "ParameterValue": "1"
-  },
-  {
-    "ParameterKey": "LoadBalancerCertificateArn",
-    "ParameterValue": "arn:aws:acm:ap-northeast-1:274682760725:certificate/c5973fb5-0edf-45aa-8862-47dea614306f"
   }
 ]
