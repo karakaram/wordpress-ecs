@@ -71,7 +71,10 @@ Conditions:
 Resources:
   Cluster:
     Type: 'AWS::ECS::Cluster'
-    Properties: {}
+    Properties:
+      ClusterSettings:
+        - Name: containerInsights
+          Value: disabled
   LogGroup:
     Type: 'AWS::Logs::LogGroup'
     Properties:
