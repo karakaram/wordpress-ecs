@@ -1,7 +1,8 @@
-FROM php:7.4-fpm-alpine
+FROM php:7.4.19-fpm-alpine
 
 # persistent dependencies
-RUN apk add --no-cache \
+RUN set -eux; \
+	apk add --no-cache \
 # in theory, docker-entrypoint.sh is POSIX-compliant, but priority is a working, consistent image
 		bash \
 # BusyBox sed is not sufficient for some of our sed expressions
@@ -9,7 +10,8 @@ RUN apk add --no-cache \
 # Ghostscript is required for rendering PDF previews
 		ghostscript \
 # Alpine package for "imagemagick" contains ~120 .so files, see: https://github.com/docker-library/wordpress/pull/497
-		imagemagick
+		imagemagick \
+	;
 
 # install the PHP extensions we need (https://make.wordpress.org/hosting/handbook/handbook/server-environment/#php-extensions)
 RUN set -ex; \
@@ -36,6 +38,7 @@ RUN set -ex; \
 	; \
 	pecl install imagick-3.4.4; \
 	docker-php-ext-enable imagick; \
+	rm -r /tmp/pear; \
 	\
 	runDeps="$( \
 		scanelf --needed --nobanner --format '%n#p' --recursive /usr/local/lib/php/extensions \
@@ -54,7 +57,7 @@ RUN set -eux; \
 		echo 'opcache.memory_consumption=128'; \
 		echo 'opcache.interned_strings_buffer=8'; \
 		echo 'opcache.max_accelerated_files=4000'; \
-		echo 'opcache.revalidate_freq=86400'; \
+		echo 'opcache.revalidate_freq=600'; \
 		echo 'opcache.fast_shutdown=1'; \
 	} > /usr/local/etc/php/conf.d/opcache-recommended.ini
 # https://wordpress.org/support/article/editing-wp-config-php/#configure-error-logging
