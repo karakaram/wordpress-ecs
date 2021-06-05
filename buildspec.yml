@@ -1,0 +1,32 @@
+version: 0.2
+
+env:
+  parameter-store:
+    DOCKERHUB_USERNAME: /my/dockerhub/username
+    DOCKERHUB_PASSWORD: /my/dockerhub/password
+
+phases:
+  install:
+    commands:
+      - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      - unzip awscliv2.zip
+      - ./aws/install --bin-dir /root/.pyenv/shims --install-dir /usr/local/aws-cli --update
+      - aws --version
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_WEB_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPOSITORY_WEB_NAME}
+      - echo ${DOCKERHUB_PASSWORD} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+  build:
+    commands:
+      - docker build -t ${REPOSITORY_WEB_URI}:latest ./nginx
+      - docker tag ${REPOSITORY_WEB_URI}:latest ${REPOSITORY_WEB_URI}:${IMAGE_TAG}
+  post_build:
+    commands:
+      - docker push ${REPOSITORY_WEB_URI}:${IMAGE_TAG}
+      - docker push ${REPOSITORY_WEB_URI}:latest
+      - printf '[{"name":"app","imageUri":"%s"}]' $REPOSITORY_WEB_URI:$IMAGE_TAG > imagedefinitions.json
+
+artifacts:
+  files: imagedefinitions.json
