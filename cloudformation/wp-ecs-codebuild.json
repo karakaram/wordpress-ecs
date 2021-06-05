@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "CodeBuildName",
+    "ParameterValue": "wp-ecs-codebuild"
+  },
+  {
+    "ParameterKey": "ECRRepositoryWebName",
+    "ParameterValue": "wp-web"
+  },
+  {
+    "ParameterKey": "GitHubRepositoryURL",
+    "ParameterValue": "https://github.com/karakaram/wordpress-ecs.git"
+  }
+]
