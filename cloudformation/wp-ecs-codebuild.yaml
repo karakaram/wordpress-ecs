@@ -6,6 +6,8 @@ Parameters:
     Type: String
   ECRRepositoryWebName:
     Type: String
+  ECRRepositoryAppName:
+    Type: String
   GitHubRepositoryURL:
     Type: String
 Resources:
@@ -101,6 +103,8 @@ Resources:
             Value: !Ref AWS::AccountId
           - Name: ECR_REPOSITORY_WEB_NAME
             Value: !Ref ECRRepositoryWebName
+          - Name: ECR_REPOSITORY_APP_NAME
+            Value: !Ref ECRRepositoryAppName
       Source:
         Location: !Ref GitHubRepositoryURL
         Type: GITHUB

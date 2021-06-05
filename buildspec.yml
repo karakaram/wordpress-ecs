@@ -16,16 +16,21 @@ phases:
     commands:
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - REPOSITORY_WEB_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPOSITORY_WEB_NAME}
+      - REPOSITORY_APP_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPOSITORY_APP_NAME}
       - echo ${DOCKERHUB_PASSWORD} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
   build:
     commands:
       - docker build -t ${REPOSITORY_WEB_URI}:latest ./nginx
       - docker tag ${REPOSITORY_WEB_URI}:latest ${REPOSITORY_WEB_URI}:${IMAGE_TAG}
+      - docker build -t ${REPOSITORY_APP_URI}:latest ./php-fpm
+      - docker tag ${REPOSITORY_APP_URI}:latest ${REPOSITORY_APP_URI}:${IMAGE_TAG}
   post_build:
     commands:
       - docker push ${REPOSITORY_WEB_URI}:${IMAGE_TAG}
       - docker push ${REPOSITORY_WEB_URI}:latest
+      - docker push ${REPOSITORY_APP_URI}:${IMAGE_TAG}
+      - docker push ${REPOSITORY_APP_URI}:latest
       - printf '[{"name":"app","imageUri":"%s"}]' $REPOSITORY_WEB_URI:$IMAGE_TAG > imagedefinitions.json
 
 artifacts:

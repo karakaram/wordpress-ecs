@@ -8,6 +8,10 @@
     "ParameterValue": "wp-web"
   },
   {
+    "ParameterKey": "ECRRepositoryAppName",
+    "ParameterValue": "wp-app"
+  },
+  {
     "ParameterKey": "GitHubRepositoryURL",
     "ParameterValue": "https://github.com/karakaram/wordpress-ecs.git"
   }
