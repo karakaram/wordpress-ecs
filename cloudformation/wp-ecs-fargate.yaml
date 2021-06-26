@@ -127,7 +127,7 @@ Resources:
             Values:
               - !Ref 'CloudFrontCustomHeaderValue'
       ListenerArn: {'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-HttpsListener'}
-      Priority: 3
+      Priority: 1
   ServiceSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -320,8 +320,7 @@ Resources:
     Properties:
       Name: wp-cron-ecs-fargate
       ScheduleExpression: rate(15 minutes)
-#      State: 'ENABLED'
-      State: 'DISABLED'
+      State: 'ENABLED'
       Targets:
         - Arn: !GetAtt 'Cluster.Arn'
           EcsParameters:
