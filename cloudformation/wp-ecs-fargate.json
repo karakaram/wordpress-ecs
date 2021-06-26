@@ -1,0 +1,58 @@
+[
+  {
+    "ParameterKey": "ParentVPCStack",
+    "ParameterValue": "cashbook-vpc-3azs"
+  },
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "karakaram-zone-public"
+  },
+  {
+    "ParameterKey": "ParentLoadBalancerStack",
+    "ParameterValue": "my-alb"
+  },
+  {
+    "ParameterKey": "ParentEFSStack",
+    "ParameterValue": "my-efs"
+  },
+  {
+    "ParameterKey": "ParentClientStack1",
+    "ParameterValue": "my-client-sg"
+  },
+  {
+    "ParameterKey": "S3BucketARN",
+    "ParameterValue": "arn:aws:s3:::media.karakaram.com"
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDotLoadBalancer",
+    "ParameterValue": "wp-alb-ecs-fargate."
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDotCloudFront",
+    "ParameterValue": "www2."
+  },
+  {
+    "ParameterKey": "CloudFrontCustomHeaderName",
+    "ParameterValue": "my-cloudfront-key"
+  },
+  {
+    "ParameterKey": "CloudFrontCustomHeaderValue",
+    "ParameterValue": "/my/cloudfront/key"
+  },
+  {
+    "ParameterKey": "WebImage",
+    "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wp-web"
+  },
+  {
+    "ParameterKey": "WebPort",
+    "ParameterValue": "80"
+  },
+  {
+    "ParameterKey": "AppImage",
+    "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wp-app"
+  },
+  {
+    "ParameterKey": "DesiredCount",
+    "ParameterValue": "0"
+  }
+]

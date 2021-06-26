@@ -10,6 +10,7 @@ services:
     ports:
       - "8080:80"
     volumes:
+      - ./nginx/conf.d/php-fpm-local.conf:/etc/nginx/conf.d/php-fpm.conf
       - ./wordpress:/var/www/html
 
   app:

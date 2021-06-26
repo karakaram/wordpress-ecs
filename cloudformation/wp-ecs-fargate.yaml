@@ -1,0 +1,355 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "ECS: service that runs on an ECS cluster and uses the cluster's ALB based on ecs/cluster.yaml, a cloudonaut.io template"
+Parameters:
+  ParentVPCStack:
+    Description: 'Stack name of parent VPC stack based on vpc/vpc-*azs.yaml template.'
+    Type: String
+  ParentZoneStack:
+    Description: 'Optional stack name of parent zone stack based on vpc/zone-*.yaml template.'
+    Type: String
+  ParentLoadBalancerStack:
+    Description: 'Stack name of parent LoadBalancer stack based on alb.yaml template.'
+    Type: String
+  ParentEFSStack:
+    Description: 'Stack name of parent EFS stack based on efs.yaml template.'
+    Type: String
+  ParentClientStack1:
+    Description: 'Optional stack name of parent Client Security Group stack based on state/client-sg.yaml template to allow network access from the cluster to whatever uses the client security group.'
+    Type: String
+    Default: ''
+  S3BucketARN:
+    Description: 'S3 Bucket Arn to store media files.'
+    Type: String
+  SubDomainNameWithDotLoadBalancer:
+    Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDotLoadBalancer}§{HostedZoneName}. Leave blank for naked (or apex and bare) domain. Requires ParentZoneStack parameter!'
+    Type: String
+  SubDomainNameWithDotCloudFront:
+    Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDotCloudFront}§{HostedZoneName}. Leave blank for naked (or apex and bare) domain. Requires ParentZoneStack parameter!'
+    Type: String
+  CloudFrontCustomHeaderName:
+    Description: 'The name attached to Header in CloudFront.'
+    Type: String
+  CloudFrontCustomHeaderValue:
+    Description: 'The value attached to Header in CloudFront.'
+    Type: AWS::SSM::Parameter::Value<String>
+  LoadBalancerDeregistrationDelay:
+    Description: 'The amount time (in seconds) to wait before changing the state of a deregistering target from draining to unused.'
+    Type: Number
+    Default: 60
+    ConstraintDescription: 'Must be in the range [0-3600]'
+    MinValue: 0
+    MaxValue: 3600
+  WebImage:
+    Description: 'The image to use for a Web container, which is passed directly to the Docker daemon.'
+    Type: String
+  WebPort:
+    Description: 'The port exposed by the web container that receives traffic from the load balancer or the proxy container (AppPort <> ProxyPort <> SidecarPort).'
+    Type: Number
+    Default: 80
+    MinValue: 1
+    MaxValue: 49150
+  AppImage:
+    Description: 'The image to use for a App container, which is passed directly to the Docker daemon.'
+    Type: String
+  LogsRetentionInDays:
+    Description: 'Specifies the number of days you want to retain log events in the specified log group.'
+    Type: Number
+    Default: 7
+  DesiredCount:
+    Description: 'The number of simultaneous tasks, that you want to run on the cluster.'
+    Type: Number
+    Default: 1
+  SubnetsReach:
+    Description: 'Should the service have direct access to the Internet or do you prefer private subnets with NAT?'
+    Type: String
+    Default: Public
+    AllowedValues:
+      - Public
+      - Private
+  HealthCheckGracePeriod:
+    Description: 'The period of time, in seconds, that the Amazon ECS service scheduler ignores unhealthy Elastic Load Balancing target health checks after a task has first started.'
+    Type: Number
+    Default: 60
+    MinValue: 0
+    MaxValue: 1800
+Conditions:
+  HasSubnetsReachPublic: !Equals [!Ref SubnetsReach, Public]
+  HasClientSecurityGroup1: !Not [ !Equals [ !Ref ParentClientStack1, '' ] ]
+Resources:
+  RecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      AliasTarget:
+        HostedZoneId: {'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-CanonicalHostedZoneID'}
+        DNSName: {'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-DNSName'}
+      HostedZoneId: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneId'}
+      Name: !Sub
+        - '${SubDomainNameWithDotLoadBalancer}${HostedZoneName}'
+        - SubDomainNameWithDotLoadBalancer: !Ref SubDomainNameWithDotLoadBalancer
+          HostedZoneName: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName'}
+      Type: A
+  LoadBalancerTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      HealthCheckIntervalSeconds: 15
+      HealthCheckPath: '/health-check.php'
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      Matcher:
+        HttpCode: '200-299'
+      Port: !Ref WebPort
+      Protocol: HTTP
+      TargetType: ip
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: !Ref LoadBalancerDeregistrationDelay
+      VpcId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-VPC'}
+  LoadBalancerHttpsListenerRule:
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values:
+              - !Sub
+                - '${SubDomainNameWithDotCloudFront}${HostedZoneName}'
+                - SubDomainNameWithDotCloudFront: !Ref SubDomainNameWithDotCloudFront
+                  HostedZoneName: { 'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName' }
+        - Field: http-header
+          HttpHeaderConfig:
+            HttpHeaderName: !Ref 'CloudFrontCustomHeaderName'
+            Values:
+              - !Ref 'CloudFrontCustomHeaderValue'
+      ListenerArn: {'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-HttpsListener'}
+      Priority: 3
+  ServiceSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: !Sub '${AWS::StackName}-service'
+      VpcId: { 'Fn::ImportValue': !Sub '${ParentVPCStack}-VPC' }
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: { 'Fn::ImportValue': !Sub '${ParentLoadBalancerStack}-SecurityGroupID' }
+          FromPort: !Ref WebPort
+          ToPort: !Ref WebPort
+          IpProtocol: tcp
+  LogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      RetentionInDays: !Ref LogsRetentionInDays
+  TaskRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: SSMAccess
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ssmmessages:CreateControlChannel'
+                  - 'ssmmessages:CreateDataChannel'
+                  - 'ssmmessages:OpenControlChannel'
+                  - 'ssmmessages:OpenDataChannel'
+                Resource: '*'
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: ListObjectsInBucket
+                Effect: Allow
+                Action: 's3:ListBucket'
+                Resource: !Ref 'S3BucketARN'
+              - Sid: AllObjectActions
+                Effect: Allow
+                Action: 's3:*Object'
+                Resource: !Ref 'S3BucketARN'
+  TaskDefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      ContainerDefinitions:
+        - DependsOn:
+            - Condition: START
+              ContainerName: app
+          Essential: true
+          Image: !Ref 'WebImage'
+          LinuxParameters:
+            InitProcessEnabled: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              'awslogs-region': !Ref 'AWS::Region'
+              'awslogs-group': !Ref 'LogGroup'
+              'awslogs-stream-prefix': 'web'
+          Memory: 128
+          MountPoints:
+            - ContainerPath: /var/www/html
+              ReadOnly: false
+              SourceVolume: efs-volume
+          Name: web
+          PortMappings:
+            - ContainerPort: 80
+              Protocol: tcp
+        - Essential: true
+          Image: !Ref 'AppImage'
+          LinuxParameters:
+            InitProcessEnabled: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              'awslogs-region': !Ref 'AWS::Region'
+              'awslogs-group': !Ref 'LogGroup'
+              'awslogs-stream-prefix': 'app'
+          Memory: 384
+          MountPoints:
+            - ContainerPath: /var/www/html
+              ReadOnly: false
+              SourceVolume: efs-volume
+          Name: app
+      Cpu: 256
+      ExecutionRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/ecsTaskExecutionRole'
+      Family: 'wp-ecs-fargate'
+      Memory: 512
+      NetworkMode: awsvpc
+      TaskRoleArn: !Ref 'TaskRole'
+      RequiresCompatibilities:
+        - FARGATE
+      Volumes:
+        - EFSVolumeConfiguration:
+            AuthorizationConfig:
+              AccessPointId: {'Fn::ImportValue': !Sub '${ParentEFSStack}-AccessPointID'}
+            FilesystemId: {'Fn::ImportValue': !Sub '${ParentEFSStack}-FileSystemID'}
+            TransitEncryption: 'ENABLED'
+          Name: efs-volume
+  TaskDefinitionCron:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      ContainerDefinitions:
+        - Name: app
+          Image: !Ref 'AppImage'
+          Memory: 128
+          Essential: true
+          Command:
+            - "su-exec"
+            - "nginx"
+            - "wp"
+            - "cron"
+            - "event"
+            - "run"
+            - "--due-now"
+            - "--path=/var/www/html"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              'awslogs-region': !Ref 'AWS::Region'
+              'awslogs-group': !Ref 'LogGroup'
+              'awslogs-stream-prefix': 'app-cron'
+          MountPoints:
+            - ContainerPath: /var/www/html
+              ReadOnly: false
+              SourceVolume: efs-volume
+      Cpu: 256
+      ExecutionRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/ecsTaskExecutionRole'
+      Family: 'wp-cron-ecs-fargate'
+      Memory: 512
+      NetworkMode: awsvpc
+      TaskRoleArn: !Ref 'TaskRole'
+      RequiresCompatibilities:
+        - FARGATE
+      Volumes:
+        - EFSVolumeConfiguration:
+            AuthorizationConfig:
+              AccessPointId: {'Fn::ImportValue': !Sub '${ParentEFSStack}-AccessPointID'}
+            FilesystemId: {'Fn::ImportValue': !Sub '${ParentEFSStack}-FileSystemID'}
+            TransitEncryption: 'ENABLED'
+          Name: efs-volume
+  Cluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      ClusterSettings:
+        - Name: containerInsights
+          Value: disabled
+#      Configuration:
+#        ExecuteCommandConfiguration:
+#          KmsKeyId: String
+#          LogConfiguration:
+#            ExecuteCommandLogConfiguration
+#          Logging: String
+  Service:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      CapacityProviderStrategy:
+        - Base: 0
+          CapacityProvider: FARGATE_SPOT
+          Weight: 1
+      Cluster: !Ref 'Cluster'
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: !Ref DesiredCount
+      EnableExecuteCommand: true
+      HealthCheckGracePeriodSeconds: !Ref HealthCheckGracePeriod
+      LoadBalancers:
+        - ContainerName: web
+          ContainerPort: !Ref WebPort
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: !If [ HasSubnetsReachPublic, ENABLED, DISABLED ]
+          SecurityGroups:
+            - !Ref ServiceSecurityGroup
+            - !If [HasClientSecurityGroup1, {'Fn::ImportValue': !Sub '${ParentClientStack1}-ClientSecurityGroup'}, !Ref 'AWS::NoValue']
+          Subnets: !Split [ ',', { 'Fn::ImportValue': !Sub '${ParentVPCStack}-Subnets${SubnetsReach}' } ]
+      PlatformVersion: '1.4.0'
+      TaskDefinition: !Ref TaskDefinition
+  TaskScheduleEvents:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      Name: wp-cron-ecs-fargate
+      ScheduleExpression: rate(15 minutes)
+#      State: 'ENABLED'
+      State: 'DISABLED'
+      Targets:
+        - Arn: !GetAtt 'Cluster.Arn'
+          EcsParameters:
+            LaunchType: FARGATE
+            NetworkConfiguration:
+              AwsVpcConfiguration:
+                AssignPublicIp: !If [ HasSubnetsReachPublic, ENABLED, DISABLED ]
+                SecurityGroups:
+                  - !If [ HasClientSecurityGroup1, { 'Fn::ImportValue': !Sub '${ParentClientStack1}-ClientSecurityGroup' }, !Ref 'AWS::NoValue' ]
+                Subnets: !Split [ ',', { 'Fn::ImportValue': !Sub '${ParentVPCStack}-Subnets${SubnetsReach}' } ]
+            PlatformVersion: '1.4.0'
+            TaskDefinitionArn: !Ref TaskDefinitionCron
+          Id: cashbook-rails-cron
+          RoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/ecsEventsRole'
+Outputs:
+  TemplateVersion:
+    Description: 'template version.'
+    Value: '12.12.0'
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  Cluster:
+    Description: 'ECS cluster.'
+    Value: !Ref Cluster
+    Export:
+      Name: !Sub '${AWS::StackName}-Cluster'
+  Service:
+    Description: 'ECS service.'
+    Value: !Ref Service
+    Export:
+      Name: !Sub '${AWS::StackName}-Service'
