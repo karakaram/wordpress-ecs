@@ -37,10 +37,10 @@
   },
   {
     "ParameterKey": "WebImage",
-    "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wp-web"
+    "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wp-web:b198010"
   },
   {
     "ParameterKey": "AppImage",
-    "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wp-app"
+    "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/wp-app:b198010"
   }
 ]
