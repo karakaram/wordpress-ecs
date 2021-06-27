@@ -214,10 +214,10 @@ Resources:
               ReadOnly: false
               SourceVolume: efs-volume
           Name: app
-      Cpu: 256
+      Cpu: 512
       ExecutionRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/ecsTaskExecutionRole'
       Family: 'wp-ecs-fargate'
-      Memory: 512
+      Memory: 1024
       NetworkMode: awsvpc
       TaskRoleArn: !Ref 'TaskRole'
       RequiresCompatibilities:
