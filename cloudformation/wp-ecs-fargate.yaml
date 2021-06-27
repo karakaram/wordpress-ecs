@@ -191,7 +191,6 @@ Resources:
               'awslogs-region': !Ref 'AWS::Region'
               'awslogs-group': !Ref 'LogGroup'
               'awslogs-stream-prefix': 'web'
-          Memory: 128
           MountPoints:
             - ContainerPath: /var/www/html
               ReadOnly: false
@@ -210,7 +209,6 @@ Resources:
               'awslogs-region': !Ref 'AWS::Region'
               'awslogs-group': !Ref 'LogGroup'
               'awslogs-stream-prefix': 'app'
-          Memory: 384
           MountPoints:
             - ContainerPath: /var/www/html
               ReadOnly: false
@@ -237,7 +235,6 @@ Resources:
       ContainerDefinitions:
         - Name: app
           Image: !Ref 'AppImage'
-          Memory: 128
           Essential: true
           Command:
             - "su-exec"
