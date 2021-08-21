@@ -9,7 +9,7 @@
   },
   {
     "ParameterKey": "SubDomainNameWithDotOrigin",
-    "ParameterValue": "wp-alb-ecs-ec2."
+    "ParameterValue": "wp-alb-ecs-fargate."
   },
   {
     "ParameterKey": "SubDomainNameWithDot",
