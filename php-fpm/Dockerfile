@@ -75,11 +75,20 @@ RUN { \
 		echo 'html_errors = Off'; \
 	} > /usr/local/etc/php/conf.d/error-logging.ini
 
-# custmize
+# install su-exec, composer, humanmade/s3-uploads and wp-cli
+RUN set -eux ; \
+    apk add --no-cache su-exec; \
+    php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"; \
+    php composer-setup.php; \
+    php -r "unlink('composer-setup.php');"; \
+    mv composer.phar /usr/local/bin/composer; \
+    curl -fsL -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar; \
+    chmod +x /usr/local/bin/wp
+
+# set my php.ini, php-fpm.conf and php-fpm.d/www.conf
 RUN set -eux ; \
     addgroup -g 101 -S nginx; \
     adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx; \
-    apk add --no-cache su-exec; \
     cp /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini; \
     sed -i -r -e 's/^;?date.timezone =.*$/date.timezone = "UTC"/g' /usr/local/etc/php/php.ini; \
     sed -i -r -e 's/^;?expose_php =.*$/expose_php = Off/g' /usr/local/etc/php/php.ini; \
@@ -96,9 +105,7 @@ RUN set -eux ; \
     sed -i -r -e 's/^;?pm.start_servers =.*.*$/pm.start_servers = 2/g' /usr/local/etc/php-fpm.d/www.conf; \
     sed -i -r -e 's/^;?pm.min_spare_servers =.*.*$/pm.min_spare_servers = 1/g' /usr/local/etc/php-fpm.d/www.conf; \
     sed -i -r -e 's/^;?pm.max_spare_servers =.*.*$/pm.max_spare_servers = 3/g' /usr/local/etc/php-fpm.d/www.conf; \
-    sed -i -r -e 's/^;?request_terminate_timeout =.*.*$/request_terminate_timeout = 120/g' /usr/local/etc/php-fpm.d/www.conf; \
-    curl -fsL -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar; \
-    chmod +x /usr/local/bin/wp
+    sed -i -r -e 's/^;?request_terminate_timeout =.*.*$/request_terminate_timeout = 120/g' /usr/local/etc/php-fpm.d/www.conf;
 
 VOLUME /var/www/html
 
