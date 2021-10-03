@@ -122,6 +122,14 @@ su-exec nginx wp core update-db
 su-exec nginx wp cache flush
 ```
 
+## s3-upload
+
+```
+su-exec nginx wp plugin activate s3-uploads
+su-exec nginx wp s3-uploads generate-iam-policy
+su-exec nginx wp s3-uploads upload-directory wp-content/uploads wp-content/uploads
+```
+
 ## Setting up WordPress using ecs-cli
 
 ```
