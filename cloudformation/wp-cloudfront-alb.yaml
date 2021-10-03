@@ -157,7 +157,7 @@ Resources:
         ViewerCertificate:
           AcmCertificateArn: !Ref AcmCertificateARN
           SslSupportMethod: 'sni-only'
-          MinimumProtocolVersion: TLSv1.2_2019
+          MinimumProtocolVersion: TLSv1.2_2021
   Route53RecordSet:
     Type: 'AWS::Route53::RecordSet'
     Properties:
