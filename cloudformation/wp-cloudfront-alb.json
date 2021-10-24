@@ -4,10 +4,6 @@
     "ParameterValue": "karakaram-zone-public"
   },
   {
-    "ParameterKey": "AcmCertificateARN",
-    "ParameterValue": "arn:aws:acm:us-east-1:274682760725:certificate/350c7040-a278-40a7-9a26-1285d26713ed"
-  },
-  {
     "ParameterKey": "SubDomainNameWithDotOrigin",
     "ParameterValue": "wp-alb-ecs-fargate."
   },
@@ -16,11 +12,23 @@
     "ParameterValue": "www."
   },
   {
+    "ParameterKey": "S3BucketName",
+    "ParameterValue": "wp-ecs-fargate-media"
+  },
+  {
+    "ParameterKey": "CloudFrontOriginAccessIdentity",
+    "ParameterValue": "E7ZCTECXEW58Z"
+  },
+  {
     "ParameterKey": "CustomHeaderName",
     "ParameterValue": "my-cloudfront-key"
   },
   {
     "ParameterKey": "CustomHeaderValue",
     "ParameterValue": "/my/cloudfront/key"
+  },
+  {
+    "ParameterKey": "AcmCertificateARN",
+    "ParameterValue": "arn:aws:acm:us-east-1:274682760725:certificate/350c7040-a278-40a7-9a26-1285d26713ed"
   }
 ]

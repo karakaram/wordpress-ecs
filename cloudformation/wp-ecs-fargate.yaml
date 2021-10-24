@@ -18,8 +18,8 @@ Parameters:
     Description: 'Optional stack name of parent Client Security Group stack based on state/client-sg.yaml template to allow network access from the cluster to whatever uses the client security group.'
     Type: String
     Default: ''
-  S3BucketARN:
-    Description: 'S3 Bucket Arn to store media files.'
+  S3BucketName:
+    Description: 'S3 Bucket Name to store media files.'
     Type: String
   SubDomainNameWithDotLoadBalancer:
     Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDotLoadBalancer}§{HostedZoneName}. Leave blank for naked (or apex and bare) domain. Requires ParentZoneStack parameter!'
@@ -77,6 +77,26 @@ Conditions:
   HasSubnetsReachPublic: !Equals [!Ref SubnetsReach, Public]
   HasClientSecurityGroup1: !Not [ !Equals [ !Ref ParentClientStack1, '' ] ]
 Resources:
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref S3BucketName
+  CloudFrontOriginAccessIdentity:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Ref S3BucketName
+  S3BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref S3BucketName
+      PolicyDocument:
+        Statement:
+          - Action: 's3:GetObject'
+            Effect: Allow
+            Resource: !Sub 'arn:aws:s3:::${S3BucketName}/*'
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
   RecordSet:
     Type: 'AWS::Route53::RecordSet'
     Properties:
@@ -175,20 +195,23 @@ Resources:
                   - 's3:GetObjectAcl'
                   - 's3:PutObject'
                   - 's3:PutObjectAcl'
-                Resource: !Sub '${S3BucketARN}/*'
+                Resource: !Sub
+                  - '${S3BucketARN}/*'
+                  - S3BucketARN:
+                      !GetAtt S3Bucket.Arn
               - Sid: AllowBucketActions
                 Effect: Allow
                 Action:
                   - 's3:GetBucketAcl'
-                  - 's3:GetBucketLocation'
+                  - 's3:GetBuckeLocation'
                   - 's3:GetBucketPolicy'
                   - 's3:ListBucket'
                   - 's3:ListBucketMultipartUploads'
-                Resource: !Ref 'S3BucketARN'
+                Resource: !GetAtt S3Bucket.Arn
               - Sid: AllowRootAndHomeListingOfBucket
                 Effect: Allow
                 Action: 's3:ListBucket'
-                Resource: !Ref 'S3BucketARN'
+                Resource: !GetAtt S3Bucket.Arn
                 Condition:
                   StringLike:
                     s3:prefix:
@@ -358,6 +381,9 @@ Outputs:
   StackName:
     Description: 'Stack name.'
     Value: !Sub '${AWS::StackName}'
+  CloudFrontOriginAccessIdentity:
+    Description: 'The origin access identity, such as E15MNIMTCFKK4C.'
+    Value: !Ref CloudFrontOriginAccessIdentity
   Cluster:
     Description: 'ECS cluster.'
     Value: !Ref Cluster

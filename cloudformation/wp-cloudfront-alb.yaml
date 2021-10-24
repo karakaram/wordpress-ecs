@@ -11,6 +11,12 @@ Parameters:
   SubDomainNameWithDot:
     Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDot}§{HostedZoneName}.'
     Type: String
+  S3BucketName:
+    Description: 'The S3 bucket name that is used to create CloudFront Origin.'
+    Type: String
+  CloudFrontOriginAccessIdentity:
+    Description: 'The origin access identity, such as E15MNIMTCFKK4C.'
+    Type: String
   CustomHeaderName:
     Description: 'The name attached to Header in CloudFront.'
     Type: String
@@ -35,6 +41,10 @@ Resources:
           - SubDomainNameWithDot: !Ref SubDomainNameWithDot
             HostedZoneName: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName'}
         Origins:
+#          - DomainName: !Sub '${S3BucketName}.s3.${AWS::Region}.amazonaws.com'
+#            Id: 's3'
+#            S3OriginConfig:
+#              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}'
           - DomainName: !Sub
               - '${SubDomainNameWithDotOrigin}${HostedZoneName}'
               - SubDomainNameWithDot: !Ref SubDomainNameWithDotOrigin
@@ -49,6 +59,16 @@ Resources:
               - HeaderName: !Ref 'CustomHeaderName'
                 HeaderValue: !Ref 'CustomHeaderValue'
         CacheBehaviors:
+#          - PathPattern: wp-content/uploads/*
+#            TargetOriginId: 's3'
+#            ViewerProtocolPolicy: 'redirect-to-https'
+#            AllowedMethods:
+#              - GET
+#              - HEAD
+#            DefaultTTL: 60
+#            MaxTTL: 60
+#            MinTTL: 60
+#            Compress: true
           - PathPattern: wp-content/*
             TargetOriginId: 'alb'
             ViewerProtocolPolicy: 'redirect-to-https'

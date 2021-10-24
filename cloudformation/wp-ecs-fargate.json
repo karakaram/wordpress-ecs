@@ -20,8 +20,8 @@
     "ParameterValue": "my-client-sg"
   },
   {
-    "ParameterKey": "S3BucketARN",
-    "ParameterValue": "arn:aws:s3:::media.karakaram.com"
+    "ParameterKey": "S3BucketName",
+    "ParameterValue": "wp-ecs-fargate-media"
   },
   {
     "ParameterKey": "SubDomainNameWithDotLoadBalancer",
