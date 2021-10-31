@@ -41,10 +41,10 @@ Resources:
           - SubDomainNameWithDot: !Ref SubDomainNameWithDot
             HostedZoneName: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName'}
         Origins:
-#          - DomainName: !Sub '${S3BucketName}.s3.${AWS::Region}.amazonaws.com'
-#            Id: 's3'
-#            S3OriginConfig:
-#              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}'
+          - DomainName: !Sub '${S3BucketName}.s3.${AWS::Region}.amazonaws.com'
+            Id: 's3'
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}'
           - DomainName: !Sub
               - '${SubDomainNameWithDotOrigin}${HostedZoneName}'
               - SubDomainNameWithDot: !Ref SubDomainNameWithDotOrigin
@@ -59,16 +59,14 @@ Resources:
               - HeaderName: !Ref 'CustomHeaderName'
                 HeaderValue: !Ref 'CustomHeaderValue'
         CacheBehaviors:
-#          - PathPattern: wp-content/uploads/*
-#            TargetOriginId: 's3'
-#            ViewerProtocolPolicy: 'redirect-to-https'
-#            AllowedMethods:
-#              - GET
-#              - HEAD
-#            DefaultTTL: 60
-#            MaxTTL: 60
-#            MinTTL: 60
-#            Compress: true
+          - PathPattern: wp-content/uploads/*
+            TargetOriginId: 's3'
+            ViewerProtocolPolicy: 'redirect-to-https'
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachePolicyId: '658327ea-f89d-4fab-a63d-7e88639e58f6' #Managed-CachingOptimized
+            Compress: true
           - PathPattern: wp-content/*
             TargetOriginId: 'alb'
             ViewerProtocolPolicy: 'redirect-to-https'
