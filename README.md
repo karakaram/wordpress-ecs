@@ -130,6 +130,10 @@ su-exec nginx wp s3-uploads generate-iam-policy
 su-exec nginx wp s3-uploads upload-directory wp-content/uploads uploads
 su-exec nginx wp s3-uploads enable
 su-exec nginx wp s3-uploads disable
+
+su-exec nginx wp s3-uploads ls uploads/2021/11
+su-exec nginx wp s3-uploads cp s3://wp-ecs-fargate-media/wp-content/uploads/2021/11/$1 wp-content/uploads/2021/11/$1
+ls wp-content/uploads/2021/11
 ```
 
 ## Setting up WordPress using ecs-cli
