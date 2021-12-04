@@ -124,16 +124,26 @@ su-exec nginx wp cache flush
 
 ## s3-upload
 
+installing
+
 ```
 su-exec nginx wp plugin activate s3-uploads
 su-exec nginx wp s3-uploads generate-iam-policy
 su-exec nginx wp s3-uploads upload-directory wp-content/uploads uploads
 su-exec nginx wp s3-uploads enable
-su-exec nginx wp s3-uploads disable
 
 su-exec nginx wp s3-uploads ls uploads/2021/11
 su-exec nginx wp s3-uploads cp s3://wp-ecs-fargate-media/wp-content/uploads/2021/11/$1 wp-content/uploads/2021/11/$1
 ls wp-content/uploads/2021/11
+```
+
+uninstalling
+
+```
+su-exec nginx wp s3-uploads disable
+su-exec nginx wp plugin deactivate s3-uploads
+su-exec nginx composer info -N | xargs su-exec nginx composer remove
+su-exec nginx rm -rf composer.json composer.lock vendor
 ```
 
 ## Setting up WordPress using ecs-cli
