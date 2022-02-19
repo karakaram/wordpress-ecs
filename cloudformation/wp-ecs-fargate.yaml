@@ -186,36 +186,30 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Sid: AllowObjectActions
+              - Sid: ObjectLevel
                 Effect: Allow
                 Action:
-                  - 's3:AbortMultipartUpload'
-                  - 's3:DeleteObject'
-                  - 's3:GetObject'
-                  - 's3:GetObjectAcl'
                   - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:DeleteObject'
                   - 's3:PutObjectAcl'
                 Resource: !Sub
                   - '${S3BucketARN}/*'
                   - S3BucketARN:
                       !GetAtt S3Bucket.Arn
-              - Sid: AllowBucketActions
+              - Sid: BucketLevel
                 Effect: Allow
                 Action:
-                  - 's3:GetBucketAcl'
-                  - 's3:GetBuckeLocation'
-                  - 's3:GetBucketPolicy'
+                  - 's3:GetBucketPublicAccessBlock'
+                  - 's3:PutBucketPublicAccessBlock'
+                  - 's3:CreateBucket'
                   - 's3:ListBucket'
-                  - 's3:ListBucketMultipartUploads'
+                  - 's3:GetBucketLocation'
                 Resource: !GetAtt S3Bucket.Arn
-              - Sid: AllowRootAndHomeListingOfBucket
+              - Sid: AccountLevel
                 Effect: Allow
-                Action: 's3:ListBucket'
-                Resource: !GetAtt S3Bucket.Arn
-                Condition:
-                  StringLike:
-                    s3:prefix:
-                      - '*'
+                Action: 's3:ListAllMyBuckets'
+                Resource: '*'
   TaskDefinition:
     Type: 'AWS::ECS::TaskDefinition'
     Properties:
