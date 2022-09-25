@@ -326,7 +326,7 @@ Resources:
     Properties:
       CapacityProviderStrategy:
         - Base: 0
-          CapacityProvider: FARGATE_SPOT
+          CapacityProvider: FARGATE
           Weight: 1
       Cluster: !Ref 'Cluster'
       DeploymentConfiguration:
