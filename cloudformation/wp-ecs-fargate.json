@@ -53,6 +53,6 @@
   },
   {
     "ParameterKey": "DesiredCount",
-    "ParameterValue": "2"
+    "ParameterValue": "1"
   }
 ]
