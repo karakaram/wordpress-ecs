@@ -1,4 +1,4 @@
-FROM nginx:1.22-alpine
+FROM nginx:1.24-alpine
 
 COPY ./nginx.conf /etc/nginx/nginx.conf
 COPY ./conf.d/php-fpm.conf /etc/nginx/conf.d/php-fpm.conf
