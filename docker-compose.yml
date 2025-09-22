@@ -14,7 +14,7 @@ services:
       - ./wordpress:/var/www/html
 
   app:
-    image: wordpress-ecs_app:7.4.23
+    image: wordpress-ecs_app:8.1.33
     build:
       context: ./php-fpm
     depends_on:
