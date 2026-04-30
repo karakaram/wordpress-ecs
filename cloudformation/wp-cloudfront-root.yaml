@@ -99,7 +99,7 @@ Resources:
             OriginCustomHeaders:
               - HeaderName: 'Referer'
                 HeaderValue: !Ref 'CloudFrontKey'
-        PriceClass: 'PriceClass_All'
+        PriceClass: 'PriceClass_200'
         ViewerCertificate:
           AcmCertificateArn: !Ref AcmCertificateARN
           MinimumProtocolVersion: 'TLSv1.2_2019'
