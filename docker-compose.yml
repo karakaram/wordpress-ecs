@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   web:
-    image: wordpress-ecs_web:1.28.0
+    image: wordpress-ecs_web:1.30.6
     build:
       context: ./nginx
     depends_on:
@@ -14,7 +12,7 @@ services:
       - ./wordpress:/var/www/html
 
   app:
-    image: wordpress-ecs_app:8.1.33
+    image: wordpress-ecs_app:8.3.35
     build:
       context: ./php-fpm
     depends_on:
@@ -30,7 +28,7 @@ services:
       - ./wordpress:/var/www/html
 
   db:
-    image: mysql:8
+    image: mysql:9
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_as_cs
     environment:
       MYSQL_DATABASE: exampledb
@@ -38,7 +36,6 @@ services:
       MYSQL_PASSWORD: examplepass
       MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
     volumes:
-      - ./mysql/conf.d:/etc/mysql/conf.d
       - db:/var/lib/mysql
 
 volumes:
